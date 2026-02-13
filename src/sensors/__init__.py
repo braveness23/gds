@@ -1,0 +1,23 @@
+"""Sensor modules for environmental and GPS data.
+
+This package provides:
+- BaseSensor: Abstract base class for all sensors
+- Environmental sensors (BME280, DHT22/DHT11)
+- GPS sensor integration
+"""
+
+from sensors.base import BaseSensor
+from sensors.environmental import EnvironmentalData, BME280Sensor, DHTSensor, create_environmental_sensor
+from sensors.gps import GPSData, GPSReader, StaticLocationProvider, create_gps_reader
+
+__all__ = [
+    'BaseSensor',
+    'EnvironmentalData',
+    'BME280Sensor',
+    'DHTSensor',
+    'create_environmental_sensor',
+    'GPSData',
+    'GPSReader',
+    'StaticLocationProvider',
+    'create_gps_reader',
+]

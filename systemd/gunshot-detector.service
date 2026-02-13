@@ -1,0 +1,31 @@
+[Unit]
+Description=Gunshot Detection System
+After=network.target gpsd.service
+Wants=gpsd.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/gunshot-detection-system
+Environment="PATH=/home/pi/gunshot-detection-system/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/pi/gunshot-detection-system/venv/bin/python /home/pi/gunshot-detection-system/main.py --config /home/pi/gunshot-detection-system/config.yaml
+
+# Restart on failure
+Restart=on-failure
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gunshot-detector
+
+# Security hardening (optional - adjust as needed)
+# NoNewPrivileges=true
+# PrivateTmp=true
+# ProtectSystem=strict
+# ProtectHome=yes
+# ReadWritePaths=/var/log /data
+
+[Install]
+WantedBy=multi-user.target

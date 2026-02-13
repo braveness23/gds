@@ -1,0 +1,178 @@
+# Gunshot Detection System - Example Configuration
+# Copy this file to config.yaml and customize for your setup
+
+system:
+  node_id: "pi_gunshot_001" # CHANGE THIS - Must be unique for each node
+  log_level: "INFO"
+  log_path: "/var/log/gunshot_detector.log"
+
+# ============================================================================
+# TIMING - Critical for trilateration accuracy
+# ============================================================================
+timing:
+  use_pps: true # Use GPS PPS for microsecond timing
+  pps_device: "/dev/pps0"
+  use_ntp: true # Fallback to NTP if no PPS
+  ntp_server: "localhost" # Use local NTP server for fleet
+  ntp_sync_interval: 300 # Sync every 5 minutes
+
+# ============================================================================
+# SENSORS
+# ============================================================================
+sensors:
+  gps:
+    enabled: true
+    host: "localhost" # gpsd host
+    port: 2947
+    update_interval: 1.0 # Update rate in seconds
+
+  environment:
+    enabled: true
+    sensor_type: "BME280" # Options: "BME280", "DHT22", "DHT11"
+    # BME280 settings (I2C)
+    i2c_address: 0x76 # or 0x77
+    # DHT settings (GPIO)
+    gpio_pin: 4
+    update_interval: 5.0
+
+# ============================================================================
+# AUDIO INPUT
+# ============================================================================
+audio:
+  source_type: "alsa" # Options: "alsa", "i2s_direct", "file"
+  device: "hw:0,0" # Use 'arecord -l' to find your device
+  sample_rate: 48000 # Higher is better for gunshots
+  channels: 1 # Mono is sufficient
+  buffer_size: 1024 # Balance latency vs CPU
+  format: "S32_LE" # 32-bit for I2S MEMS mics
+
+# ============================================================================
+# SIGNAL PROCESSING
+# ============================================================================
+processing:
+  highpass_filter:
+    enabled: true
+    cutoff_freq: 5000 # Remove low-frequency noise
+    order: 4 # Higher = sharper cutoff
+    type: "butterworth" # Options: "butterworth", "chebyshev"
+  gain_db: 0.0 # Adjust if signal too quiet/loud
+
+# ============================================================================
+# DETECTION ALGORITHMS
+# ============================================================================
+detection:
+  # Aubio - Fast onset detection
+  aubio:
+    enabled: true
+    method: "complex" # Best for transients
+    hop_size: 256 # Smaller = lower latency
+    threshold: 0.5 # Adjust sensitivity (0.0-1.0)
+    silence_threshold: -70 # Ignore quiet audio (dB)
+
+  # Machine Learning - High accuracy (requires trained model)
+  ml:
+    enabled: false
+    model_path: "/models/gunshot_model.pth"
+    confidence_threshold: 0.8
+    window_size: 4096
+
+  # Simple threshold - Fast fallback
+  threshold:
+    enabled: false
+    threshold_db: -15
+    min_duration_ms: 10
+
+# ============================================================================
+# OUTPUTS - Where to send detection events
+# ============================================================================
+output:
+  # MQTT - Recommended for fleet coordination
+  mqtt:
+    enabled: true
+    broker: "mqtt.daveschwinn.com" # CHANGE THIS - Your MQTT broker IP
+    port: 1883
+    topic: "gunshot/detections"
+    qos: 1 # 0=fast, 1=reliable, 2=guaranteed
+    username: gunshot_detector # Set if broker requires auth
+    password: Clavicle-Barge-Hull2
+
+  # Meshtastic - Long-range mesh network
+  meshtastic:
+    enabled: false
+    device: "/dev/ttyUSB0" # Or "tcp:192.168.1.100" for network
+    channel: 0
+    send_position_updates: true
+    position_update_interval: 300
+    send_telemetry: true
+    telemetry_interval: 600
+
+  # LoRa - Alternative long-range option
+  lora:
+    enabled: false
+    device: "/dev/ttyUSB1"
+    frequency: 915000000 # US: 915MHz, EU: 868MHz
+    bandwidth: 125000
+    spreading_factor: 7
+
+  # File Logger - Always keep local logs
+  file_logger:
+    enabled: true
+    path: "/var/log/detections.jsonl"
+
+  # Buffer Saver - Save audio around detections
+  buffer_saver:
+    enabled: false # Enable for forensic analysis
+    output_dir: "/data/detections"
+    pre_trigger_buffers: 10 # Save 10 buffers before detection
+    post_trigger_buffers: 20 # Save 20 buffers after
+
+# ============================================================================
+# MONITORING - System health
+# ============================================================================
+monitoring:
+  system:
+    enabled: true
+    update_interval: 5.0
+    disk_path: "/"
+    alert_thresholds:
+      cpu_percent: 90.0
+      memory_percent: 90.0
+      disk_percent: 95.0
+      cpu_temp: 80.0 # Celsius
+
+  audio_buffer:
+    enabled: true
+    report_interval: 60.0
+
+  detection:
+    enabled: true
+    report_interval: 300.0 # Report stats every 5 min
+
+# ============================================================================
+# REMOTE CONFIGURATION - Manage fleet remotely
+# ============================================================================
+remote_config:
+  enabled: false # Enable for production fleets
+  require_confirmation: true # Require confirmation for safety
+  auto_save: true
+
+  mqtt:
+    enabled: false
+    broker: "192.168.1.100"
+    port: 1883
+    base_topic: "gunshot/config"
+    username: null
+    password: null
+
+  web_api:
+    enabled: false
+    host: "0.0.0.0" # Listen on all interfaces
+    port: 8080
+
+# ============================================================================
+# LOCATION - Fallback if GPS unavailable
+# ============================================================================
+location:
+  latitude: null # Set manually if no GPS
+  longitude: null
+  altitude: null # Meters above sea level
