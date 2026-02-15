@@ -15,7 +15,6 @@ def test_logging_to_file_permission_error(tmp_path, monkeypatch):
     log_file.chmod(0)
     try:
         with pytest.raises(PermissionError):
-            logging.basicConfig(filename=str(log_file))
-            logging.getLogger().info("test")
+            logging.FileHandler(str(log_file))
     finally:
         log_file.chmod(0o644)
