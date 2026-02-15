@@ -28,6 +28,8 @@ from src.sensors.static_gps import StaticGPSDevice
 from src.sensors.environmental import BME280Sensor, DHTSensor, create_environmental_sensor
 from src.output.mqtt_output import MQTTOutputNode
 
+logger = logging.getLogger(__name__)
+
 
 class GunshotDetectionSystem:
     """
@@ -66,8 +68,8 @@ class GunshotDetectionSystem:
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
-        print(f"[System] Initializing gunshot detection system")
-        print(f"[System] Config: {config_path}")
+        logger.info("Initializing gunshot detection system")
+        logger.info(f"Config: {config_path}")
 
     def initialize(self) -> bool:
         """
@@ -77,19 +79,19 @@ class GunshotDetectionSystem:
             bool: True if initialization successful, False otherwise
         """
         try:
-            print(f"\n[System] Initializing components...")
+            logger.info("\nInitializing components...")
 
             # 1. Load configuration (if not already loaded by command-line args)
             if not self.config:
                 self.config = Config(self.config_path)
-                print(f"  ✓ Configuration loaded")
+                logger.info("  ✓ Configuration loaded")
             else:
-                print(f"  ✓ Using pre-configured settings")
+                logger.info("  ✓ Using pre-configured settings")
 
             # 2. Initialize event bus
             self.event_bus = EventBus()
             self.event_bus.start()
-            print(f"  ✓ Event bus started")
+            logger.info("  ✓ Event bus started")
 
             # Subscribe to events for local monitoring
             self.event_bus.subscribe(EventType.DETECTION, self._on_detection_event)
@@ -105,12 +107,12 @@ class GunshotDetectionSystem:
                         longitude=gps_config.get('longitude', 0.0),
                         altitude=gps_config.get('altitude', 0.0)
                     )
-                    print(f"  ✓ Static GPS initialized")
+                    logger.info("  ✓ Static GPS initialized")
                 else:
                     self.gps_reader = create_gps_reader(gps_config)
-                    print(f"  ✓ GPS reader initialized")
+                    logger.info("  ✓ GPS reader initialized")
             else:
-                print(f"  - GPS disabled")
+                logger.info("  - GPS disabled")
 
             # 4. Initialize MQTT output if enabled
             mqtt_config = self.config.get('output.mqtt', {})
@@ -128,9 +130,9 @@ class GunshotDetectionSystem:
                     gps_reader=self.gps_reader
                 )
                 self.mqtt_output.connect()
-                print(f"  ✓ MQTT output initialized")
+                logger.info("  ✓ MQTT output initialized")
             else:
-                print(f"  - MQTT disabled")
+                logger.info("  - MQTT disabled")
 
             # 5. Initialize audio source
             audio_config = self.config.get('audio', {})
@@ -145,16 +147,16 @@ class GunshotDetectionSystem:
                     buffer_size=audio_config.get('buffer_size', 1024),
                     format_bits=audio_config.get('format_bits', 32)
                 )
-                print(f"  ✓ ALSA audio source initialized")
+                logger.info("  ✓ ALSA audio source initialized")
             else:
-                print(f"  ! Unsupported audio source: {source_type}")
+                logger.error(f"  ! Unsupported audio source: {source_type}")
                 return False
 
-            print(f"[System] Initialization complete\n")
+            logger.info("Initialization complete\n")
             return True
 
         except Exception as e:
-            print(f"[System] Initialization failed: {e}")
+            logger.error(f"Initialization failed: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -162,92 +164,92 @@ class GunshotDetectionSystem:
     def start(self):
         """Start the detection system."""
         if self.running:
-            print(f"[System] Already running")
+            logger.info("Already running")
             return
 
-        print(f"\n{'='*60}")
-        print(f"Starting Gunshot Detection System")
-        print(f"{'='*60}")
+        logger.info(f"\n{'='*60}")
+        logger.info("Starting Gunshot Detection System")
+        logger.info(f"{'='*60}")
 
         self.running = True
         self.start_time = time.time()
 
         # Start audio source
         try:
-            print(f"[System] Starting audio capture...")
+            logger.info("Starting audio capture...")
             self.audio_source.start()
-            print(f"[System] Audio capture started")
+            logger.info("Audio capture started")
         except Exception as e:
-            print(f"[System] Failed to start audio: {e}")
+            logger.error(f"Failed to start audio: {e}")
             self.stop()
             return
 
-        print(f"\n{'='*60}")
-        print(f"System Running")
-        print(f"{'='*60}")
-        print(f"Node ID: {self.config.get('system.node_id', 'unknown')}")
-        print(f"Audio source: {self.config.get('audio.source', 'unknown')}")
+        logger.info(f"\n{'='*60}")
+        logger.info("System Running")
+        logger.info(f"{'='*60}")
+        logger.info(f"Node ID: {self.config.get('system.node_id', 'unknown')}")
+        logger.info(f"Audio source: {self.config.get('audio.source', 'unknown')}")
 
         if self.gps_reader:
             pos = self.gps_reader.get_position()
             if pos and pos.has_fix:
-                print(f"GPS: ({pos.latitude:.6f}, {pos.longitude:.6f})")
+                logger.info(f"GPS: ({pos.latitude:.6f}, {pos.longitude:.6f})")
             else:
-                print(f"GPS: Waiting for fix...")
+                logger.info("GPS: Waiting for fix...")
 
         if self.mqtt_output and self.mqtt_output.connected:
-            print(f"MQTT: Connected to {self.config.get('output.mqtt.broker', 'unknown')}")
+            logger.info(f"MQTT: Connected to {self.config.get('output.mqtt.broker', 'unknown')}")
 
-        print(f"\nPress Ctrl+C to stop")
-        print(f"{'='*60}\n")
+        logger.info("\nPress Ctrl+C to stop")
+        logger.info(f"{'='*60}\n")
 
     def stop(self):
         """Stop the detection system."""
         if not self.running:
             return
 
-        print(f"\n{'='*60}")
-        print(f"Stopping Gunshot Detection System")
-        print(f"{'='*60}")
+        logger.info(f"\n{'='*60}")
+        logger.info("Stopping Gunshot Detection System")
+        logger.info(f"{'='*60}")
 
         self.running = False
 
         # Stop audio source
         if self.audio_source:
-            print(f"[System] Stopping audio capture...")
+            logger.info("Stopping audio capture...")
             self.audio_source.stop()
 
         # Stop GPS
         if self.gps_reader:
-            print(f"[System] Stopping GPS...")
+            logger.info("Stopping GPS...")
             self.gps_reader.stop()
 
         # Disconnect MQTT
         if self.mqtt_output:
-            print(f"[System] Disconnecting MQTT...")
+            logger.info("Disconnecting MQTT...")
             self.mqtt_output.disconnect()
 
         # Stop event bus
         if self.event_bus:
-            print(f"[System] Stopping event bus...")
+            logger.info("Stopping event bus...")
             self.event_bus.stop()
 
         # Print statistics
         if self.start_time:
             uptime = time.time() - self.start_time
-            print(f"\n[System] Uptime: {uptime:.1f}s")
+            logger.info(f"\nUptime: {uptime:.1f}s")
 
         if self.event_bus:
             stats = self.event_bus.get_stats()
-            print(f"[System] Events published: {stats['events_published']}")
-            print(f"[System] Events dispatched: {stats['events_dispatched']}")
+            logger.info(f"Events published: {stats['events_published']}")
+            logger.info(f"Events dispatched: {stats['events_dispatched']}")
 
-        print(f"[System] Shutdown complete")
+        logger.info("Shutdown complete")
 
     def run(self):
         """Run the detection system (blocking)."""
         if not self.initialize():
-            print(f"[System] Initialization failed, exiting")
+            logger.error("Initialization failed, exiting")
             return 1
 
         self.start()
@@ -257,23 +259,23 @@ class GunshotDetectionSystem:
             while self.running:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print(f"\n[System] Interrupted by user")
+            logger.info("\nInterrupted by user")
 
         self.stop()
         return 0
 
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals."""
-        print(f"\n[System] Received signal {signum}")
+        logger.info(f"\nReceived signal {signum}")
         self.running = False
 
     def _on_detection_event(self, event):
         """Handle detection events (for logging/monitoring)."""
         # This is just for local logging
         # MQTT output will handle publishing to network
-        print(f"[Detection] {event.data.get('detector_type', 'unknown')} "
-              f"at {event.timestamp:.6f}s "
-              f"(confidence: {event.data.get('confidence', 0):.2f})")
+        logger.info(f"[Detection] {event.data.get('detector_type', 'unknown')} "
+                   f"at {event.timestamp:.6f}s "
+                   f"(confidence: {event.data.get('confidence', 0):.2f})")
 
     def _on_system_event(self, event):
         """Handle system events (for logging/monitoring)."""
@@ -346,7 +348,7 @@ Configuration:
 
     # Override config with command line args
     if args.test:
-        print(f"[System] Test mode: processing file {args.test}")
+        logger.info(f"Test mode: processing file {args.test}")
         # Temporarily modify config for testing
         system.config = Config(args.config)
         system.config.set('audio.source', 'file')
@@ -354,13 +356,13 @@ Configuration:
         system.config.set('audio.realtime', False)
 
     if args.no_mqtt:
-        print(f"[System] MQTT disabled (command line)")
+        logger.info("MQTT disabled (command line)")
         if not system.config:
             system.config = Config(args.config)
         system.config.set('output.mqtt.enabled', False)
 
     if args.no_gps:
-        print(f"[System] GPS disabled (command line)")
+        logger.info("GPS disabled (command line)")
         if not system.config:
             system.config = Config(args.config)
         system.config.set('sensors.gps.enabled', False)

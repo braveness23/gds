@@ -2,8 +2,11 @@
 
 import yaml
 import json
+import logging
 from typing import Dict, Any, Optional
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class Config:
@@ -17,8 +20,8 @@ class Config:
             try:
                 self.load(config_path)
             except Exception as e:
-                print(f"[Config] Warning: Failed to load config from {config_path}: {e}")
-                print(f"[Config] Using default configuration")
+                logger.warning(f"Failed to load config from {config_path}: {e}")
+                logger.info("Using default configuration")
     
     def _default_config(self) -> Dict[str, Any]:
         """Default configuration"""
@@ -183,19 +186,19 @@ class Config:
             with open(path, 'r') as f:
                 if path.suffix in ['.yaml', '.yml']:
                     loaded = yaml.safe_load(f)
-                    print(f"[DEBUG] Raw YAML loaded: {loaded}")
+                    logger.debug(f"Raw YAML loaded: {loaded}")
                 elif path.suffix == '.json':
                     loaded = json.load(f)
-                    print(f"[DEBUG] Raw JSON loaded: {loaded}")
+                    logger.debug(f"Raw JSON loaded: {loaded}")
 
             self.data = self._deep_merge(self.data, loaded)
             self.config_path = str(path)
-            print(f"[Config] Loaded configuration from {path}")
+            logger.info(f"Loaded configuration from {path}")
         except (yaml.YAMLError, json.JSONDecodeError) as e:
-            print(f"[Config] Error parsing config file: {e}")
+            logger.error(f"Error parsing config file: {e}")
             raise
         except Exception as e:
-            print(f"[Config] Error loading config: {e}")
+            logger.error(f"Error loading config: {e}")
             raise
     
     def save(self, path: Optional[str] = None):
@@ -210,11 +213,11 @@ class Config:
                     yaml.dump(self.data, f, default_flow_style=False)
                 elif path.suffix == '.json':
                     json.dump(self.data, f, indent=2)
-            
-            print(f"[Config] Saved configuration to {path}")
-        
+
+            logger.info(f"Saved configuration to {path}")
+
         except Exception as e:
-            print(f"[Config] Error saving config: {e}")
+            logger.error(f"Error saving config: {e}")
     
     def _deep_merge(self, base: Dict, update: Dict) -> Dict:
         """Deep merge dictionaries recursively."""

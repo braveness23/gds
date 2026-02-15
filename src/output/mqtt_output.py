@@ -7,6 +7,7 @@ servers, dashboards, and other nodes.
 
 import json
 import time
+import logging
 import threading
 from typing import Optional, Dict, Any
 from src.core.event_bus import Event, EventType
@@ -50,6 +51,7 @@ class MQTTOutputNode:
             gps_reader: GPS reader for location data (optional)
             env_sensor: Environmental sensor for conditions (optional)
         """
+        self.logger = logging.getLogger('MQTTOutput')
         self.broker = broker
         self.port = port
         self.base_topic = topic
@@ -101,7 +103,7 @@ class MQTTOutputNode:
             self.client.tls_insecure_set(True)
 
         try:
-            print(f"[MQTTOutput] Connecting to {self.broker}:{self.port}...")
+            self.logger.info(f"Connecting to {self.broker}:{self.port}...")
             self.client.connect(self.broker, self.port, keepalive=60)
             self.client.loop_start()
             self.running = True
@@ -112,32 +114,32 @@ class MQTTOutputNode:
                 self.event_bus.subscribe(EventType.HEALTH, self._on_health_event)
                 self.event_bus.subscribe(EventType.SYSTEM, self._on_system_event)
 
-            print(f"[MQTTOutput] MQTT output initialized for node '{self.node_id}'")
+            self.logger.info(f"MQTT output initialized for node '{self.node_id}'")
 
         except Exception as e:
-            print(f"[MQTTOutput] Connection failed: {e}")
+            self.logger.error(f"Connection failed: {e}")
             self._start_reconnect_thread()
 
     def _on_connect(self, client, userdata, flags, rc):
         """Callback when connected to broker."""
         if rc == 0:
             self.connected = True
-            print(f"[MQTTOutput] Connected to MQTT broker at {self.broker}:{self.port}")
+            self.logger.info(f"Connected to MQTT broker at {self.broker}:{self.port}")
 
             # Publish online status
             self._publish_status("online")
         else:
             self.connected = False
-            print(f"[MQTTOutput] Connection failed with code {rc}")
+            self.logger.error(f"Connection failed with code {rc}")
 
     def _on_disconnect(self, client, userdata, rc):
         """Callback when disconnected from broker."""
         self.connected = False
         if rc != 0:
-            print(f"[MQTTOutput] Unexpected disconnection (code {rc}), will retry...")
+            self.logger.warning(f"Unexpected disconnection (code {rc}), will retry...")
             self._start_reconnect_thread()
         else:
-            print(f"[MQTTOutput] Disconnected from broker")
+            self.logger.info("Disconnected from broker")
 
     def _on_publish(self, client, userdata, mid):
         """Callback when message is published."""
@@ -156,11 +158,11 @@ class MQTTOutputNode:
         """Background loop to reconnect."""
         while self.running and not self.connected:
             try:
-                print(f"[MQTTOutput] Attempting to reconnect...")
+                self.logger.info("Attempting to reconnect...")
                 self.client.reconnect()
                 time.sleep(5)  # Wait between attempts
             except Exception as e:
-                print(f"[MQTTOutput] Reconnect failed: {e}")
+                self.logger.error(f"Reconnect failed: {e}")
                 time.sleep(5)
 
     def _on_detection_event(self, event: Event):
@@ -232,7 +234,7 @@ class MQTTOutputNode:
                         "satellites": position.satellites
                     }
             except Exception as e:
-                print(f"[MQTTOutput] Failed to get GPS position: {e}")
+                self.logger.warning(f"Failed to get GPS position: {e}")
 
         # Add environmental data if available
         if self.env_sensor:
@@ -245,7 +247,7 @@ class MQTTOutputNode:
                         "pressure": env_data.pressure
                     }
             except Exception as e:
-                print(f"[MQTTOutput] Failed to get environmental data: {e}")
+                self.logger.warning(f"Failed to get environmental data: {e}")
 
         return message
 
@@ -259,15 +261,15 @@ class MQTTOutputNode:
                 self.messages_published += 1
             else:
                 self.messages_failed += 1
-                print(f"[MQTTOutput] Publish failed to {topic} (rc={result.rc})")
-            
+                self.logger.error(f"Publish failed to {topic} (rc={result.rc})")
+
             # Check if message queue is getting full
             if result.rc == 1:  # MQTT_ERR_NOMEM - queue full
-                print(f"[MQTTOutput] WARNING: Message queue full! Messages being dropped.")
+                self.logger.warning("Message queue full! Messages being dropped.")
 
         except Exception as e:
             self.messages_failed += 1
-            print(f"[MQTTOutput] Error publishing to {topic}: {e}")
+            self.logger.error(f"Error publishing to {topic}: {e}")
 
     def _publish_status(self, status: str):
         """Publish node status."""
@@ -292,8 +294,8 @@ class MQTTOutputNode:
             self.client.loop_stop()
             self.client.disconnect()
 
-        print(f"[MQTTOutput] Disconnected (published {self.messages_published} messages, "
-              f"{self.messages_failed} failed)")
+        self.logger.info(f"Disconnected (published {self.messages_published} messages, "
+                        f"{self.messages_failed} failed)")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics."""
@@ -322,6 +324,7 @@ class MQTTFleetCoordinator:
                  username: Optional[str] = None,
                  password: Optional[str] = None,
                  use_tls: bool = False):
+        self.logger = logging.getLogger('FleetCoordinator')
         self.broker = broker
         self.port = port
         self.username = username
@@ -360,7 +363,7 @@ class MQTTFleetCoordinator:
             self.client.tls_set(cert_reqs=ssl.CERT_NONE)
             self.client.tls_insecure_set(True)
 
-        print(f"[FleetCoordinator] Connecting to {self.broker}:{self.port}...")
+        self.logger.info(f"Connecting to {self.broker}:{self.port}...")
         self.client.connect(self.broker, self.port, keepalive=60)
         self.client.loop_start()
 
@@ -368,7 +371,7 @@ class MQTTFleetCoordinator:
         """Callback when connected."""
         if rc == 0:
             self.connected = True
-            print(f"[FleetCoordinator] Connected to MQTT broker")
+            self.logger.info("Connected to MQTT broker")
 
             # Subscribe to all detection topics
             self.client.subscribe("gunshot/detections", qos=1)
@@ -376,9 +379,9 @@ class MQTTFleetCoordinator:
             self.client.subscribe("gunshot/+/health", qos=1)
             self.client.subscribe("gunshot/+/status", qos=1)
 
-            print(f"[FleetCoordinator] Subscribed to fleet topics")
+            self.logger.info("Subscribed to fleet topics")
         else:
-            print(f"[FleetCoordinator] Connection failed with code {rc}")
+            self.logger.error(f"Connection failed with code {rc}")
 
     def _on_message(self, client, userdata, msg):
         """Callback when message received."""
@@ -399,14 +402,14 @@ class MQTTFleetCoordinator:
                 self._handle_status(payload)
 
         except Exception as e:
-            print(f"[FleetCoordinator] Error processing message: {e}")
+            self.logger.error(f"Error processing message: {e}")
 
     def _handle_detection(self, payload: Dict[str, Any]):
         """Handle detection from a node."""
         self.detections.append(payload)
 
-        print(f"[FleetCoordinator] Detection from {payload.get('node_id', 'unknown')} "
-              f"at {payload.get('timestamp', 0):.3f}s")
+        self.logger.info(f"Detection from {payload.get('node_id', 'unknown')} "
+                        f"at {payload.get('timestamp', 0):.3f}s")
 
         if self.detection_callback:
             self.detection_callback(payload)
@@ -422,9 +425,9 @@ class MQTTFleetCoordinator:
         status = payload.get('status')
 
         if status == 'online':
-            print(f"[FleetCoordinator] Node {node_id} came online")
+            self.logger.info(f"Node {node_id} came online")
         elif status == 'offline':
-            print(f"[FleetCoordinator] Node {node_id} went offline")
+            self.logger.info(f"Node {node_id} went offline")
 
     def set_detection_callback(self, callback):
         """Set callback for detection events."""
@@ -463,4 +466,4 @@ class MQTTFleetCoordinator:
             self.client.loop_stop()
             self.client.disconnect()
 
-        print(f"[FleetCoordinator] Disconnected (received {len(self.detections)} detections)")
+        self.logger.info(f"Disconnected (received {len(self.detections)} detections)")

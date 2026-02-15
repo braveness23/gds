@@ -3,6 +3,7 @@
 This module provides nodes for filtering, conversion, and analysis of audio buffers.
 """
 
+import logging
 import numpy as np
 from scipy import signal
 from typing import Optional
@@ -36,6 +37,7 @@ class HighPassFilterNode(AudioNode):
                  order: int = 4,
                  filter_type: str = 'butterworth'):
         super().__init__(name)
+        self.logger = logging.getLogger(name)
         self.cutoff_freq = cutoff_freq
         self.order = order
         self.filter_type = filter_type
@@ -82,9 +84,9 @@ class HighPassFilterNode(AudioNode):
         if channels > 1:
             # Shape: (n_sections, channels, 2)
             self.zi = np.tile(self.zi[:, np.newaxis, :], (1, channels, 1))
-        
-        print(f"[{self.name}] Initialized {self.filter_type} filter: "
-              f"{self.cutoff_freq}Hz cutoff, order {self.order}")
+
+        self.logger.info(f"Initialized {self.filter_type} filter: "
+                        f"{self.cutoff_freq}Hz cutoff, order {self.order}")
     
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Apply high-pass filter to buffer."""
@@ -121,17 +123,18 @@ class HighPassFilterNode(AudioNode):
 
 class GainNode(AudioNode):
     """Apply gain or attenuation to audio signal."""
-    
+
     def __init__(self, name: str = "Gain", gain_db: float = 0.0):
         super().__init__(name)
+        self.logger = logging.getLogger(name)
         self.gain_db = gain_db
         self.gain_linear = 10.0 ** (gain_db / 20.0)
-    
+
     def set_gain(self, gain_db: float):
         """Update gain in dB."""
         self.gain_db = gain_db
         self.gain_linear = 10.0 ** (gain_db / 20.0)
-        print(f"[{self.name}] Gain updated to {gain_db:.1f} dB")
+        self.logger.info(f"Gain updated to {gain_db:.1f} dB")
     
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Apply gain to samples."""
@@ -260,15 +263,16 @@ class NormalizationNode(AudioNode):
 
 class ClippingDetectorNode(AudioNode):
     """Detect audio clipping (saturation).
-    
+
     Useful for alerting when microphone input is too loud.
     """
-    
+
     def __init__(self,
                  name: str = "ClipDetector",
                  threshold: float = 0.99,
                  min_duration_samples: int = 3):
         super().__init__(name)
+        self.logger = logging.getLogger(name)
         self.threshold = threshold
         self.min_duration_samples = min_duration_samples
         self.clipping_count = 0
@@ -285,8 +289,8 @@ class ClippingDetectorNode(AudioNode):
             for start, length in clipped_runs:
                 if length >= self.min_duration_samples:
                     self.clipping_count += 1
-                    print(f"[{self.name}] WARNING: Clipping detected at buffer "
-                          f"{buffer.buffer_index}, sample {start}, duration {length}")
+                    self.logger.warning(f"Clipping detected at buffer "
+                                       f"{buffer.buffer_index}, sample {start}, duration {length}")
         
         return buffer
     

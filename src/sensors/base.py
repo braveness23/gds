@@ -39,11 +39,11 @@ class BaseSensor(ABC, Generic[T]):
 
     def connect(self):
         """Establish connection to sensor hardware (public)."""
-        print(f"[{self.sensor_name}] Connecting...")
+        self.logger.info("Connecting...")
         try:
             self._connect()
             self.connected = True
-            print(f"[{self.sensor_name}] Connected successfully")
+            self.logger.info("Connected successfully")
             # Take initial reading
             initial_data = self._read_sensor()
             if initial_data:
@@ -51,7 +51,7 @@ class BaseSensor(ABC, Generic[T]):
                     self.current_data = initial_data
         except Exception as e:
             self.connected = False
-            print(f"[{self.sensor_name}] Connection failed: {e}")
+            self.logger.error(f"Connection failed: {e}")
             raise
     
     def __init__(self,
@@ -119,12 +119,12 @@ class BaseSensor(ABC, Generic[T]):
     def start(self):
         """Start sensor reading thread."""
         if self.running:
-            print(f"[{self.sensor_name}] Already running")
+            self.logger.info("Already running")
             return
-        
+
         if not self.connected:
             self.connect()
-        
+
         self.running = True
         self.stats['start_time'] = time.time()
         # Start background thread
@@ -135,46 +135,45 @@ class BaseSensor(ABC, Generic[T]):
         """Stop sensor reading thread."""
         if not self.running:
             return
-        
-        print(f"[{self.sensor_name}] Stopping...")
+
+        self.logger.info("Stopping...")
         self.running = False
-        # self.logger.error(f"Callback error: {e}")
+
         # Wait for thread to finish
         if self.update_thread and self.update_thread.is_alive():
             self.update_thread.join(timeout=5.0)
-        
-            self.logger.info(f"Statistics:")
+
         try:
             self._disconnect()
         except Exception as e:
-            print(f"[{self.sensor_name}] Disconnect error: {e}")
-        
+            self.logger.error(f"Disconnect error: {e}")
+
         self.connected = False
-        
-        print(f"[{self.sensor_name}] Stopped")
+
+        self.logger.info("Stopped")
         self._print_stats()
     
     def _update_loop(self):
         """Background thread that polls sensor at regular intervals."""
-        print(f"[{self.sensor_name}] Update loop started")
-        
+        self.logger.info("Update loop started")
+
         while self.running:
             try:
                 # Read sensor
                 data = self._read_sensor()
-                
+
                 if data is not None:
                     # Update statistics
                     self.stats['readings_taken'] += 1
                     self.stats['last_reading_time'] = time.time()
-                    
+
                     # Store data (thread-safe)
                     with self.data_lock:
                         self.current_data = data
-                    
+
                     # Notify callbacks
                     self._notify_callbacks(data)
-                    
+
                     # Publish to event bus
                     if self.event_bus and self.event_type:
                         from core.event_bus import Event
@@ -187,15 +186,15 @@ class BaseSensor(ABC, Generic[T]):
                         self.event_bus.publish(event)
                 else:
                     self.stats['read_errors'] += 1
-                
+
             except Exception as e:
                 self.stats['read_errors'] += 1
-                print(f"[{self.sensor_name}] Read error: {e}")
-            
+                self.logger.error(f"Read error: {e}")
+
             # Sleep until next update
             time.sleep(self.update_interval)
-        
-        print(f"[{self.sensor_name}] Update loop ended")
+
+        self.logger.info("Update loop ended")
     
     def _notify_callbacks(self, data: T):
         """Notify all registered callbacks with new data."""
@@ -204,7 +203,7 @@ class BaseSensor(ABC, Generic[T]):
                 try:
                     callback(data)
                 except Exception as e:
-                    print(f"[{self.sensor_name}] Callback error: {e}")
+                    self.logger.error(f"Callback error: {e}")
     
     def get_data(self) -> Optional[T]:
         """
@@ -219,26 +218,26 @@ class BaseSensor(ABC, Generic[T]):
     def add_callback(self, callback: Callable[[T], None]):
         """
         Register callback for sensor updates.
-        
+
         Args:
             callback: Function to call with sensor data
         """
         with self.callback_lock:
             if callback not in self.callbacks:
                 self.callbacks.append(callback)
-                print(f"[{self.sensor_name}] Callback registered")
+                self.logger.debug("Callback registered")
     
     def remove_callback(self, callback: Callable[[T], None]):
         """
         Unregister callback.
-        
+
         Args:
             callback: Function to remove
         """
         with self.callback_lock:
             if callback in self.callbacks:
                 self.callbacks.remove(callback)
-                print(f"[{self.sensor_name}] Callback removed")
+                self.logger.debug("Callback removed")
     
     def get_stats(self) -> Dict[str, Any]:
         """Get sensor statistics."""
@@ -256,11 +255,11 @@ class BaseSensor(ABC, Generic[T]):
     def _print_stats(self):
         """Print sensor statistics."""
         stats = self.get_stats()
-        print(f"[{self.sensor_name}] Statistics:")
-        print(f"  Readings: {stats['readings_taken']}")
-        print(f"  Errors: {stats['read_errors']}")
+        self.logger.info("Statistics:")
+        self.logger.info(f"  Readings: {stats['readings_taken']}")
+        self.logger.info(f"  Errors: {stats['read_errors']}")
         if stats.get('uptime'):
-            print(f"  Uptime: {stats['uptime']:.1f}s")
+            self.logger.info(f"  Uptime: {stats['uptime']:.1f}s")
     
     def __enter__(self):
         """Context manager entry."""

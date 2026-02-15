@@ -6,6 +6,7 @@ Supports both callback-based updates and on-demand position retrieval.
 
 import time
 import threading
+import logging
 from dataclasses import dataclass
 from typing import Optional, Callable, List
 from src.core.event_bus import Event, EventType
@@ -122,18 +123,18 @@ class GPSReader(BaseGPSDevice[GPSData]):
         try:
             import gps
         except ImportError:
-            print("[GPSReader] Warning: gps module not installed")
-            print("  Install with: pip install gps")
-            print("  Or on Raspberry Pi: sudo apt install python3-gps")
+            self.logger.warning("gps module not installed")
+            self.logger.info("  Install with: pip install gps")
+            self.logger.info("  Or on Raspberry Pi: sudo apt install python3-gps")
             raise ImportError("gps module not available")
-        
+
         try:
-            print(f"[GPSReader] Connecting to gpsd at {self.host}:{self.port}...")
+            self.logger.info(f"Connecting to gpsd at {self.host}:{self.port}...")
             self.gps_session = gps.gps(host=self.host, port=self.port, mode=gps.WATCH_ENABLE)
-            print(f"[GPSReader] Connected to gpsd")
+            self.logger.info("Connected to gpsd")
         except Exception as e:
-            print(f"[GPSReader] Failed to connect to gpsd: {e}")
-            print(f"  Make sure gpsd is running: sudo systemctl status gpsd")
+            self.logger.error(f"Failed to connect to gpsd: {e}")
+            self.logger.info("  Make sure gpsd is running: sudo systemctl status gpsd")
             raise
     
     def _read_sensor(self) -> Optional[GPSData]:
@@ -161,23 +162,23 @@ class GPSReader(BaseGPSDevice[GPSData]):
                     if position.has_fix:
                         self._log_counter += 1
                         if self._log_counter % 10 == 0:
-                            print(f"[GPSReader] Position: ({position.latitude:.6f}, "
-                                  f"{position.longitude:.6f}, {position.altitude:.1f}m) "
-                                  f"{position.fix_type_name}, {position.satellites} sats, "
-                                  f"HDOP: {position.hdop:.1f}")
-                    
+                            self.logger.info(f"Position: ({position.latitude:.6f}, "
+                                           f"{position.longitude:.6f}, {position.altitude:.1f}m) "
+                                           f"{position.fix_type_name}, {position.satellites} sats, "
+                                           f"HDOP: {position.hdop:.1f}")
+
                     return position
-                
+
             return None
-        
+
         except StopIteration:
             # gpsd connection lost
-            print(f"[GPSReader] Connection to gpsd lost, attempting reconnect...")
+            self.logger.warning("Connection to gpsd lost, attempting reconnect...")
             self._reconnect()
             return None
-        
+
         except Exception as e:
-            print(f"[GPSReader] Error reading GPS: {e}")
+            self.logger.error(f"Error reading GPS: {e}")
             return None
     
     def _parse_tpv_report(self, report: dict) -> Optional[GPSData]:
@@ -238,9 +239,9 @@ class GPSReader(BaseGPSDevice[GPSData]):
             )
         
         except Exception as e:
-            print(f"[GPSReader] Error parsing TPV report: {e}")
+            self.logger.error(f"Error parsing TPV report: {e}")
             return None
-    
+
     def _reconnect(self):
         """Reconnect to gpsd."""
         try:
@@ -248,7 +249,7 @@ class GPSReader(BaseGPSDevice[GPSData]):
             time.sleep(2.0)  # Wait before reconnect
             self.connect()
         except Exception as e:
-            print(f"[GPSReader] Reconnect failed: {e}")
+            self.logger.error(f"Reconnect failed: {e}")
     
     # Alias for GPS-specific naming
     def get_position(self) -> Optional[GPSData]:
@@ -258,27 +259,27 @@ class GPSReader(BaseGPSDevice[GPSData]):
     def wait_for_fix(self, timeout: float = 60.0) -> bool:
         """
         Wait for GPS to acquire fix.
-        
+
         Args:
             timeout: Maximum time to wait (seconds)
-        
+
         Returns:
             True if fix acquired, False if timeout
         """
-        print(f"[GPSReader] Waiting for GPS fix (timeout: {timeout}s)...")
+        self.logger.info(f"Waiting for GPS fix (timeout: {timeout}s)...")
         start_time = time.time()
-        
+
         while time.time() - start_time < timeout:
             position = self.get_position()
-            
+
             if position and position.has_fix:
-                print(f"[GPSReader] GPS fix acquired! "
-                      f"({position.latitude:.6f}, {position.longitude:.6f})")
+                self.logger.info(f"GPS fix acquired! "
+                               f"({position.latitude:.6f}, {position.longitude:.6f})")
                 return True
-            
+
             time.sleep(1.0)
-        
-        print(f"[GPSReader] Timeout waiting for GPS fix")
+
+        self.logger.warning("Timeout waiting for GPS fix")
         return False
 
 
@@ -298,12 +299,13 @@ class StaticLocationProvider:
                  altitude: float = 0.0):
         """
         Initialize static location.
-        
+
         Args:
             latitude: Latitude in decimal degrees
             longitude: Longitude in decimal degrees
             altitude: Altitude in meters above sea level
         """
+        self.logger = logging.getLogger('StaticLocation')
         self.position = GPSData(
             latitude=latitude,
             longitude=longitude,
@@ -315,9 +317,9 @@ class StaticLocationProvider:
             speed=0.0,
             track=0.0
         )
-        
-        print(f"[StaticLocation] Using static position: "
-              f"({latitude:.6f}, {longitude:.6f}, {altitude:.1f}m)")
+
+        self.logger.info(f"Using static position: "
+                        f"({latitude:.6f}, {longitude:.6f}, {altitude:.1f}m)")
     
     def connect(self):
         """No-op for static location."""
@@ -362,7 +364,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
             try:
                 self.serial = serial.Serial(self.device, self.baudrate, timeout=1)
             except Exception as e:
-                print(f"[SerialGPSReader] Failed to open serial device {self.device}: {e}")
+                self.logger.error(f"Failed to open serial device {self.device}: {e}")
                 raise
 
         def _disconnect(self):
@@ -370,7 +372,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
                 if hasattr(self, 'serial') and self.serial and getattr(self.serial, 'is_open', True):
                     self.serial.close()
             except Exception as e:
-                print(f"[SerialGPSReader] Error closing serial device: {e}")
+                self.logger.error(f"Error closing serial device: {e}")
 
         def _read_sensor(self):
             if serial is None or pynmea2 is None:
@@ -433,19 +435,20 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
                             return None
                 return None
             except Exception as e:
-                print(f"[SerialGPSReader] Read error: {e}")
+                self.logger.error(f"Read error: {e}")
                 return None
 
 
 def create_gps_reader(config: dict, event_bus=None):
     """
     Factory function to create GPS reader from config.
-    
+
     Returns GPSReader if GPS is enabled, otherwise StaticLocationProvider.
     """
+    logger = logging.getLogger('GPS')
     gps_config = config.get('sensors', {}).get('gps', {})
     location_config = config.get('location', {})
-    
+
     if gps_config.get('enabled', False):
         serial_dev = gps_config.get('serial_device') or ''
         baud = gps_config.get('baudrate', 9600)
@@ -469,10 +472,10 @@ def create_gps_reader(config: dict, event_bus=None):
                                              update_interval=gps_config.get('update_interval', 1.0),
                                              event_bus=event_bus)
                 except Exception as e:
-                    print(f"[GPS] Failed to initialize SerialGPSReader: {e}")
+                    logger.error(f"Failed to initialize SerialGPSReader: {e}")
                     # fallthrough to gpsd
             else:
-                print("[GPS] prefer_serial is true but serial device or dependencies missing")
+                logger.warning("prefer_serial is true but serial device or dependencies missing")
 
         # If gpsd is available and either preferred or serial not configured, use gpsd
         if gps_available and (not prefer_serial or not serial_dev or not serial_available):
@@ -482,7 +485,7 @@ def create_gps_reader(config: dict, event_bus=None):
                                  update_interval=gps_config.get('update_interval', 1.0),
                                  event_bus=event_bus)
             except Exception as e:
-                print(f"[GPS] Failed to initialize GPSReader (gpsd): {e}")
+                logger.error(f"Failed to initialize GPSReader (gpsd): {e}")
 
         # If we get here, try serial reader if available
         if serial_dev and serial_available:
@@ -492,19 +495,19 @@ def create_gps_reader(config: dict, event_bus=None):
                                        update_interval=gps_config.get('update_interval', 1.0),
                                        event_bus=event_bus)
             except Exception as e:
-                print(f"[GPS] Failed to initialize SerialGPSReader: {e}")
+                logger.error(f"Failed to initialize SerialGPSReader: {e}")
 
         if not gps_available and not (serial_dev and serial_available):
-            print("[GPS] No GPS backend available (gps module or pyserial/pynmea2). Falling back to static location")
-    
+            logger.warning("No GPS backend available (gps module or pyserial/pynmea2). Falling back to static location")
+
     # Use static location (from config or default)
     lat = location_config.get('latitude', 0.0)
     lon = location_config.get('longitude', 0.0)
     alt = location_config.get('altitude', 0.0)
-    
+
     if lat == 0.0 and lon == 0.0:
-        print("[GPS] Warning: Using default location (0, 0)")
-        print("  Set location in config.yaml under 'location' section")
-    
+        logger.warning("Using default location (0, 0)")
+        logger.info("  Set location in config.yaml under 'location' section")
+
     from sensors.static_gps import StaticGPSDevice
     return StaticGPSDevice(lat, lon, alt)
