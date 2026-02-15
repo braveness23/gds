@@ -1,11 +1,12 @@
 """Integration tests for MQTT output system."""
 
-import pytest
-import time
 import json
-from src.core.event_bus import Event, EventType, DetectionEvent
+import time
+
+import pytest
+
+from src.core.event_bus import DetectionEvent, Event, EventType
 from src.output.mqtt_output import MQTTOutputNode
-from tests.mocks.mock_mqtt import MockMQTTClient
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def mqtt_node(event_bus, mock_paho_mqtt):
         node_id="test_node_001",
         qos=1,
         use_tls=False,
-        event_bus=event_bus
+        event_bus=event_bus,
     )
     return node
 
@@ -59,7 +60,7 @@ class TestMQTTIntegration:
             source="aubio",
             confidence=0.85,
             detector_type="onset",
-            buffer_index=42
+            buffer_index=42,
         )
         event_bus.publish(detection)
 
@@ -71,20 +72,24 @@ class TestMQTTIntegration:
         assert len(messages) >= 1
 
         # Check published message contains detection data
-        detection_msgs = [m for m in messages if b'detections' in m.topic.encode() or 'detections' in m.topic]
+        detection_msgs = [
+            m
+            for m in messages
+            if b"detections" in m.topic.encode() or "detections" in m.topic
+        ]
         assert len(detection_msgs) >= 1
 
         # Parse and verify content
         msg = json.loads(detection_msgs[0].payload.decode())
-        assert msg['node_id'] == 'test_node_001'
+        assert msg["node_id"] == "test_node_001"
         # Detection data is nested under 'detection' key
-        assert 'detection' in msg or 'confidence' in msg
-        if 'detection' in msg:
-            assert msg['detection']['confidence'] == 0.85
-            assert msg['detection']['detector_type'] == 'onset'
+        assert "detection" in msg or "confidence" in msg
+        if "detection" in msg:
+            assert msg["detection"]["confidence"] == 0.85
+            assert msg["detection"]["detector_type"] == "onset"
         else:
-            assert msg['confidence'] == 0.85
-            assert msg['detector_type'] == 'onset'
+            assert msg["confidence"] == 0.85
+            assert msg["detector_type"] == "onset"
 
     def test_multiple_detections_published(self, event_bus, mqtt_node, mock_paho_mqtt):
         """Test multiple detections are all published."""
@@ -105,7 +110,7 @@ class TestMQTTIntegration:
                 source="test_detector",
                 confidence=0.7 + i * 0.05,
                 detector_type="onset",
-                buffer_index=i
+                buffer_index=i,
             )
             event_bus.publish(detection)
 
@@ -158,7 +163,7 @@ class TestMQTTIntegration:
             source="test",
             confidence=0.8,
             detector_type="onset",
-            buffer_index=0
+            buffer_index=0,
         )
         event_bus.publish(detection)
 
@@ -184,7 +189,7 @@ class TestMQTTIntegration:
             event_type=EventType.HEALTH,
             timestamp=200.0,
             source="system_monitor",
-            data={'cpu_usage': 45.2, 'memory_usage': 62.1}
+            data={"cpu_usage": 45.2, "memory_usage": 62.1},
         )
         event_bus.publish(health_event)
 
@@ -192,7 +197,7 @@ class TestMQTTIntegration:
 
         # Verify health was published
         messages = client.get_published_messages()
-        health_msgs = [m for m in messages if 'health' in m.topic]
+        health_msgs = [m for m in messages if "health" in m.topic]
 
         assert len(health_msgs) >= 1, "Health event was not published"
 
@@ -214,7 +219,7 @@ class TestMQTTIntegration:
             source="aubio",
             confidence=0.92,
             detector_type="onset",
-            buffer_index=10
+            buffer_index=10,
         )
         event_bus.publish(detection)
 
@@ -228,14 +233,14 @@ class TestMQTTIntegration:
         msg_data = json.loads(messages[0].payload.decode())
 
         # Verify required fields
-        assert 'node_id' in msg_data
-        assert 'timestamp' in msg_data
-        assert msg_data['node_id'] == 'test_node_001'
+        assert "node_id" in msg_data
+        assert "timestamp" in msg_data
+        assert msg_data["node_id"] == "test_node_001"
 
         # Detection data may be nested under 'detection' key
-        if 'detection' in msg_data:
-            assert msg_data['detection']['confidence'] == 0.92
-            assert msg_data['detection']['detector_type'] == 'onset'
+        if "detection" in msg_data:
+            assert msg_data["detection"]["confidence"] == 0.92
+            assert msg_data["detection"]["detector_type"] == "onset"
         else:
-            assert msg_data['confidence'] == 0.92
-            assert msg_data['detector_type'] == 'onset'
+            assert msg_data["confidence"] == 0.92
+            assert msg_data["detector_type"] == "onset"

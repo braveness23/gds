@@ -1,12 +1,21 @@
+import time
+
 from .base_gps import BaseGPSDevice
 from .gps import GPSData
-import time
+
 
 class MockGPSDevice(BaseGPSDevice[GPSData]):
     """
     Mock GPS device for testing. Simulates movement or random positions.
     """
-    def __init__(self, latitude: float = 0.0, longitude: float = 0.0, altitude: float = 0.0, move: bool = False):
+
+    def __init__(
+        self,
+        latitude: float = 0.0,
+        longitude: float = 0.0,
+        altitude: float = 0.0,
+        move: bool = False,
+    ):
         super().__init__(update_interval=1.0, sensor_name="MockGPSDevice")
         self.latitude = latitude
         self.longitude = longitude
@@ -32,7 +41,7 @@ class MockGPSDevice(BaseGPSDevice[GPSData]):
             satellites=5,
             hdop=0.9,
             speed=0.5 if self.move else 0.0,
-            track=90.0 if self.move else 0.0
+            track=90.0 if self.move else 0.0,
         )
 
     def _disconnect(self):

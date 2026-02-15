@@ -10,23 +10,20 @@ This is the primary entry point that:
 - Handles signals for graceful shutdown
 """
 
+import argparse
+import logging
+import signal
 import sys
 import time
-import os
-import argparse
-import yaml
-import signal
-import threading
-import logging
-from src.core.logging_utils import setup_logging
+
+from src.audio.audio_nodes import ALSASourceNode, FileSourceNode
 from src.config.config import Config
 from src.core.event_bus import EventBus, EventType
-from src.audio.audio_nodes import ALSASourceNode
+from src.core.logging_utils import setup_logging
 from src.detection.detection_nodes import AubioOnsetNode, ThresholdDetectorNode
-from src.sensors.gps import GPSReader, create_gps_reader
-from src.sensors.static_gps import StaticGPSDevice
-from src.sensors.environmental import BME280Sensor, DHTSensor, create_environmental_sensor
 from src.output.mqtt_output import MQTTOutputNode
+from src.sensors.gps import create_gps_reader
+from src.sensors.static_gps import StaticGPSDevice
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +40,7 @@ class GunshotDetectionSystem:
     - Handle graceful shutdown
     """
 
-    def __init__(self, config_path: str = 'config.yaml'):
+    def __init__(self, config_path: str = "config.yaml"):
         """
         Initialize the detection system.
 
@@ -98,14 +95,14 @@ class GunshotDetectionSystem:
             self.event_bus.subscribe(EventType.SYSTEM, self._on_system_event)
 
             # 3. Initialize GPS reader if enabled
-            gps_config = self.config.get('sensors.gps', {})
-            if gps_config.get('enabled', True):
-                gps_type = gps_config.get('type', 'static')
-                if gps_type == 'static':
+            gps_config = self.config.get("sensors.gps", {})
+            if gps_config.get("enabled", True):
+                gps_type = gps_config.get("type", "static")
+                if gps_type == "static":
                     self.gps_reader = StaticGPSDevice(
-                        latitude=gps_config.get('latitude', 0.0),
-                        longitude=gps_config.get('longitude', 0.0),
-                        altitude=gps_config.get('altitude', 0.0)
+                        latitude=gps_config.get("latitude", 0.0),
+                        longitude=gps_config.get("longitude", 0.0),
+                        altitude=gps_config.get("altitude", 0.0),
                     )
                     logger.info("  ✓ Static GPS initialized")
                 else:
@@ -115,21 +112,21 @@ class GunshotDetectionSystem:
                 logger.info("  - GPS disabled")
 
             # 4. Initialize MQTT output if enabled
-            mqtt_config = self.config.get('output.mqtt', {})
-            if mqtt_config.get('enabled', False):
+            mqtt_config = self.config.get("output.mqtt", {})
+            if mqtt_config.get("enabled", False):
                 self.mqtt_output = MQTTOutputNode(
-                    broker=mqtt_config.get('broker', 'localhost'),
-                    port=mqtt_config.get('port', 1883),
-                    topic=mqtt_config.get('topic', 'gunshot/detections'),
-                    node_id=self.config.get('system.node_id', 'unknown'),
-                    qos=mqtt_config.get('qos', 1),
-                    username=mqtt_config.get('username'),
-                    password=mqtt_config.get('password'),
-                    use_tls=mqtt_config.get('use_tls', False),
-                    tls_ca_cert=mqtt_config.get('tls_ca_cert'),
-                    tls_insecure=mqtt_config.get('tls_insecure', False),
+                    broker=mqtt_config.get("broker", "localhost"),
+                    port=mqtt_config.get("port", 1883),
+                    topic=mqtt_config.get("topic", "gunshot/detections"),
+                    node_id=self.config.get("system.node_id", "unknown"),
+                    qos=mqtt_config.get("qos", 1),
+                    username=mqtt_config.get("username"),
+                    password=mqtt_config.get("password"),
+                    use_tls=mqtt_config.get("use_tls", False),
+                    tls_ca_cert=mqtt_config.get("tls_ca_cert"),
+                    tls_insecure=mqtt_config.get("tls_insecure", False),
                     event_bus=self.event_bus,
-                    gps_reader=self.gps_reader
+                    gps_reader=self.gps_reader,
                 )
                 self.mqtt_output.connect()
                 logger.info("  ✓ MQTT output initialized")
@@ -137,22 +134,70 @@ class GunshotDetectionSystem:
                 logger.info("  - MQTT disabled")
 
             # 5. Initialize audio source
-            audio_config = self.config.get('audio', {})
-            source_type = audio_config.get('source', 'alsa')
+            audio_config = self.config.get("audio", {})
+            # Support both `source` and legacy `source_type` config keys
+            source_type = audio_config.get("source") or audio_config.get(
+                "source_type", "alsa"
+            )
 
-            if source_type == 'alsa':
+            if source_type == "alsa":
                 self.audio_source = ALSASourceNode(
                     name="ALSASource",
-                    device=audio_config.get('device', 'default'),
-                    sample_rate=audio_config.get('sample_rate', 48000),
-                    channels=audio_config.get('channels', 1),
-                    buffer_size=audio_config.get('buffer_size', 1024),
-                    format_bits=audio_config.get('format_bits', 32)
+                    device=audio_config.get("device", "default"),
+                    sample_rate=audio_config.get("sample_rate", 48000),
+                    channels=audio_config.get("channels", 1),
+                    buffer_size=audio_config.get("buffer_size", 1024),
+                    format_bits=audio_config.get("format_bits", 32),
                 )
                 logger.info("  ✓ ALSA audio source initialized")
+            elif source_type == "file":
+                # File source for test mode / replay
+                self.audio_source = FileSourceNode(
+                    name="FileSource",
+                    filepath=audio_config.get("filepath"),
+                    buffer_size=audio_config.get("buffer_size", 1024),
+                    realtime=audio_config.get("realtime", True),
+                    loop=audio_config.get("loop", False),
+                )
+                logger.info("  ✓ File audio source initialized")
             else:
                 logger.error(f"  ! Unsupported audio source: {source_type}")
                 return False
+
+            # Wire audio source to detectors
+            try:
+                # Basic processing pipeline: send raw buffers to multiple detectors
+                aubio_node = AubioOnsetNode(
+                    method=self.config.get("detection.aubio.method", "complex"),
+                    hop_size=self.config.get("detection.aubio.hop_size", 512),
+                    threshold=self.config.get("detection.aubio.threshold", 0.3),
+                    silence_threshold=self.config.get(
+                        "detection.aubio.silence_threshold", -70.0
+                    ),
+                    event_bus=self.event_bus,
+                    publish_min_interval_ms=self.config.get(
+                        "detection.publish_min_interval_ms", 50.0
+                    ),
+                )
+                thresh_node = ThresholdDetectorNode(
+                    threshold_db=self.config.get(
+                        "detection.threshold.threshold_db", -15.0
+                    ),
+                    min_duration_ms=self.config.get(
+                        "detection.threshold.min_duration_ms", 10.0
+                    ),
+                    event_bus=self.event_bus,
+                    publish_min_interval_ms=self.config.get(
+                        "detection.publish_min_interval_ms", 50.0
+                    ),
+                )
+
+                # Connect audio source to detectors
+                self.audio_source.connect(aubio_node.receive)
+                self.audio_source.connect(thresh_node.receive)
+                logger.info("  ✓ Detection nodes connected to audio source")
+            except Exception as e:
+                logger.error(f"Failed to wire detection pipeline: {e}")
 
             logger.info("Initialization complete\n")
             return True
@@ -160,6 +205,7 @@ class GunshotDetectionSystem:
         except Exception as e:
             logger.error(f"Initialization failed: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -200,7 +246,9 @@ class GunshotDetectionSystem:
                 logger.info("GPS: Waiting for fix...")
 
         if self.mqtt_output and self.mqtt_output.connected:
-            logger.info(f"MQTT: Connected to {self.config.get('output.mqtt.broker', 'unknown')}")
+            logger.info(
+                f"MQTT: Connected to {self.config.get('output.mqtt.broker', 'unknown')}"
+            )
 
         logger.info("\nPress Ctrl+C to stop")
         logger.info(f"{'='*60}\n")
@@ -275,9 +323,11 @@ class GunshotDetectionSystem:
         """Handle detection events (for logging/monitoring)."""
         # This is just for local logging
         # MQTT output will handle publishing to network
-        logger.info(f"[Detection] {event.data.get('detector_type', 'unknown')} "
-                   f"at {event.timestamp:.6f}s "
-                   f"(confidence: {event.data.get('confidence', 0):.2f})")
+        logger.info(
+            f"[Detection] {event.data.get('detector_type', 'unknown')} "
+            f"at {event.timestamp:.6f}s "
+            f"(confidence: {event.data.get('confidence', 0):.2f})"
+        )
 
     def _on_system_event(self, event):
         """Handle system events (for logging/monitoring)."""
@@ -287,8 +337,13 @@ class GunshotDetectionSystem:
 
 def main():
     """Main entry point."""
+    # Configure logging early
+    try:
+        setup_logging()
+    except Exception:
+        logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(
-        description='Gunshot Detection System',
+        description="Gunshot Detection System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -308,42 +363,44 @@ Configuration:
   - GPS settings
   - MQTT broker
   - Node ID and location
-        """
+        """,
     )
 
     parser.add_argument(
-        '--config', '-c',
-        default='config.yaml',
-        help='Path to configuration file (default: config.yaml)'
+        "--config",
+        "-c",
+        default="config.yaml",
+        help="Path to configuration file (default: config.yaml)",
     )
 
     parser.add_argument(
-        '--test', '-t',
-        metavar='AUDIOFILE',
-        help='Test mode: process audio file instead of live capture'
+        "--test",
+        "-t",
+        metavar="AUDIOFILE",
+        help="Test mode: process audio file instead of live capture",
     )
 
     parser.add_argument(
-        '--no-mqtt',
-        action='store_true',
-        help='Disable MQTT output (local only)'
+        "--no-mqtt", action="store_true", help="Disable MQTT output (local only)"
     )
 
     parser.add_argument(
-        '--no-gps',
-        action='store_true',
-        help='Disable GPS (use static location from config)'
+        "--no-gps",
+        action="store_true",
+        help="Disable GPS (use static location from config)",
     )
 
     args = parser.parse_args()
 
-    # Print banner
-    print("""
+    # Banner
+    logger.info(
+        """
 ╔════════════════════════════════════════════════════════════╗
 ║        Gunshot Detection System v1.0                       ║
 ║        Distributed Acoustic Event Detection                ║
 ╚════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
     # Create system
     system = GunshotDetectionSystem(config_path=args.config)
@@ -353,21 +410,21 @@ Configuration:
         logger.info(f"Test mode: processing file {args.test}")
         # Temporarily modify config for testing
         system.config = Config(args.config)
-        system.config.set('audio.source', 'file')
-        system.config.set('audio.filepath', args.test)
-        system.config.set('audio.realtime', False)
+        system.config.set("audio.source", "file")
+        system.config.set("audio.filepath", args.test)
+        system.config.set("audio.realtime", False)
 
     if args.no_mqtt:
         logger.info("MQTT disabled (command line)")
         if not system.config:
             system.config = Config(args.config)
-        system.config.set('output.mqtt.enabled', False)
+        system.config.set("output.mqtt.enabled", False)
 
     if args.no_gps:
         logger.info("GPS disabled (command line)")
         if not system.config:
             system.config = Config(args.config)
-        system.config.set('sensors.gps.enabled', False)
+        system.config.set("sensors.gps.enabled", False)
 
     # Run system
     exit_code = system.run()

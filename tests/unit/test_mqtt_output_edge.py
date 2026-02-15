@@ -1,9 +1,9 @@
 """Unit tests for MQTT output edge cases."""
 
-import pytest
 import time
-from src.output.mqtt_output import MQTTOutputNode
+
 from src.core.event_bus import DetectionEvent
+from src.output.mqtt_output import MQTTOutputNode
 from tests.mocks.mock_mqtt import MockMQTTClient
 
 
@@ -14,13 +14,15 @@ def test_mqtt_connect_failure(mock_paho_mqtt):
 
     # Patch to return a client that fails on connect
     def failing_client_factory(*args, **kwargs):
-        return MockMQTTClient(client_id=kwargs.get('client_id', ''), fail_on_connect=True)
+        return MockMQTTClient(
+            client_id=kwargs.get("client_id", ""), fail_on_connect=True
+        )
 
     # Re-patch the Client factory
-    fake_mqtt_client = ModuleType('paho.mqtt.client')
+    fake_mqtt_client = ModuleType("paho.mqtt.client")
     fake_mqtt_client.Client = failing_client_factory
-    sys.modules['paho.mqtt.client'] = fake_mqtt_client
-    sys.modules['paho.mqtt'].client = fake_mqtt_client
+    sys.modules["paho.mqtt.client"] = fake_mqtt_client
+    sys.modules["paho.mqtt"].client = fake_mqtt_client
 
     # Create node and attempt to connect
     node = MQTTOutputNode(broker="localhost")
@@ -52,11 +54,10 @@ def test_mqtt_publish_failure(mock_paho_mqtt, event_bus):
         source="test",
         confidence=0.8,
         detector_type="test",
-        buffer_index=0
+        buffer_index=0,
     )
 
-    # Track initial failed count
-    initial_failed = node.messages_failed
+    # Track initial failed count (not used directly in this test)
 
     # Publish event through event bus
     event_bus.publish(detection)

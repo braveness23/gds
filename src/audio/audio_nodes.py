@@ -6,60 +6,62 @@ trilateration accuracy.
 """
 
 
-import numpy as np
+import logging
 import threading
 import time
-import logging
-from dataclasses import dataclass
-from typing import Optional, Callable, List
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Callable, List, Optional
+
+import numpy as np
 
 
 @dataclass
 class AudioBuffer:
     """Timestamped audio buffer with metadata."""
+
     samples: np.ndarray  # shape: (n_samples,) for mono, (n_samples, n_channels) for stereo
-    timestamp: float     # System time (already GPS-synced via chrony/ntpd)
+    timestamp: float  # System time (already GPS-synced via chrony/ntpd)
     sample_rate: int
     channels: int
     buffer_index: int
-    
+
     @property
     def duration(self) -> float:
         """Duration of buffer in seconds."""
         return len(self.samples) / self.sample_rate
-    
+
     @property
     def is_mono(self) -> bool:
         """Check if buffer is mono."""
         return self.channels == 1
-    
-    def to_mono(self) -> 'AudioBuffer':
+
+    def to_mono(self) -> "AudioBuffer":
         """Convert stereo to mono by averaging channels."""
         if self.is_mono:
             return self
-        
+
         mono_samples = np.mean(self.samples, axis=1)
         return AudioBuffer(
             samples=mono_samples,
             timestamp=self.timestamp,
             sample_rate=self.sample_rate,
             channels=1,
-            buffer_index=self.buffer_index
+            buffer_index=self.buffer_index,
         )
 
 
 class AudioNode(ABC):
     """Base class for all audio processing nodes."""
-    
+
     def __init__(self, name: str):
         self.name = name
         self.outputs: List[Callable[[AudioBuffer], None]] = []
-    
+
     def connect(self, receiver: Callable[[AudioBuffer], None]):
         """Connect this node's output to another node's input."""
         self.outputs.append(receiver)
-    
+
     def emit(self, buffer: AudioBuffer):
         """Send buffer to all connected nodes."""
         for output in self.outputs:
@@ -67,12 +69,12 @@ class AudioNode(ABC):
                 output(buffer)
             except Exception as e:
                 logging.error(f"[{self.name}] Error in output callback: {e}")
-    
+
     @abstractmethod
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Process input buffer, return processed buffer or None."""
         pass
-    
+
     def receive(self, buffer: AudioBuffer):
         """Receive buffer, process, and emit if result exists."""
         result = self.process(buffer)
@@ -82,7 +84,7 @@ class AudioNode(ABC):
 
 class AudioSourceNode(AudioNode):
     """Base class for audio sources that generate timestamped buffers."""
-    
+
     def __init__(self, name: str, sample_rate: int, channels: int, buffer_size: int):
         super().__init__(name)
         self.sample_rate = sample_rate
@@ -90,17 +92,17 @@ class AudioSourceNode(AudioNode):
         self.buffer_size = buffer_size
         self.buffer_index = 0
         self.running = False
-    
+
     @abstractmethod
     def start(self):
         """Start capturing audio."""
         pass
-    
+
     @abstractmethod
     def stop(self):
         """Stop capturing audio."""
         pass
-    
+
     def _create_buffer(self, samples: np.ndarray) -> AudioBuffer:
         """Create timestamped buffer from samples."""
         # System clock is already GPS-synced via chrony/ntpd
@@ -110,7 +112,7 @@ class AudioSourceNode(AudioNode):
             timestamp=timestamp,
             sample_rate=self.sample_rate,
             channels=self.channels,
-            buffer_index=self.buffer_index
+            buffer_index=self.buffer_index,
         )
         self.buffer_index += 1
         return buffer
@@ -118,14 +120,16 @@ class AudioSourceNode(AudioNode):
 
 class ALSASourceNode(AudioSourceNode):
     """Capture audio from ALSA device (I2S mics configured as ALSA)."""
-    
-    def __init__(self,
-                 name: str = "ALSA",
-                 device: str = "default",
-                 sample_rate: int = 48000,
-                 channels: int = 1,
-                 buffer_size: int = 1024,
-                 format_bits: int = 32):
+
+    def __init__(
+        self,
+        name: str = "ALSA",
+        device: str = "default",
+        sample_rate: int = 48000,
+        channels: int = 1,
+        buffer_size: int = 1024,
+        format_bits: int = 32,
+    ):
         # Ensure all positional arguments come before keyword arguments
         super().__init__(name, sample_rate, channels, buffer_size)
         self.device = device
@@ -133,7 +137,7 @@ class ALSASourceNode(AudioSourceNode):
         self.stream = None
         self.pa = None
         self.logger = logging.getLogger(self.__class__.__name__)
-    
+
     def start(self):
         """Start ALSA capture stream."""
         try:
@@ -145,18 +149,24 @@ class ALSASourceNode(AudioSourceNode):
         # Suppress ALSA warnings about missing PCM devices
         try:
             from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
-            ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
+
+            ERROR_HANDLER_FUNC = CFUNCTYPE(
+                None, c_char_p, c_int, c_char_p, c_int, c_char_p
+            )
+
             def py_error_handler(filename, line, function, err, fmt):
                 pass  # Suppress all ALSA error messages
+
             c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
-            asound = cdll.LoadLibrary('libasound.so.2')
+            asound = cdll.LoadLibrary("libasound.so.2")
             asound.snd_lib_error_set_handler(c_error_handler)
-        except:
-            pass  # If suppression fails, continue anyway
+        except Exception as e:
+            # Not critical; log at debug level and continue
+            self.logger.debug("Failed to set ALSA error handler: %s", e, exc_info=True)
 
         self.running = True
         self.pa = pyaudio.PyAudio()
-        
+
         # Determine format
         if self.format_bits == 32:
             format_type = pyaudio.paInt32
@@ -166,57 +176,65 @@ class ALSASourceNode(AudioSourceNode):
             format_type = pyaudio.paInt16
         else:
             raise ValueError(f"Unsupported format_bits: {self.format_bits}")
-        
+
         # Find device index if not "default"
         device_index = None
         if self.device != "default":
             # First try: substring match against reported device names
             for i in range(self.pa.get_device_count()):
                 info = self.pa.get_device_info_by_index(i)
-                if self.device in info['name'] or info['name'] in self.device:
+                if self.device in info["name"] or info["name"] in self.device:
                     device_index = i
                     self.logger.info(f"Found device by name match: {info['name']}")
                     break
 
             # Second try: if device looks like hw:X,Y or plughw:X,Y, use /proc/asound/cards
-            if device_index is None and (self.device.startswith('hw:') or self.device.startswith('plughw:')):
+            if device_index is None and (
+                self.device.startswith("hw:") or self.device.startswith("plughw:")
+            ):
                 try:
                     # extract card number
-                    _, card_dev = self.device.split(':', 1)
-                    card_num = int(card_dev.split(',')[0])
+                    _, card_dev = self.device.split(":", 1)
+                    card_num = int(card_dev.split(",")[0])
                     # parse /proc/asound/cards to find the card id/text
                     card_name = None
-                    with open('/proc/asound/cards', 'r') as f:
+                    with open("/proc/asound/cards", "r") as f:
                         lines = f.readlines()
                     for i in range(0, len(lines), 2):
-                        if i+1 < len(lines):
+                        if i + 1 < len(lines):
                             header = lines[i].strip()
-                            if header.startswith(str(card_num) + ' '):
+                            if header.startswith(str(card_num) + " "):
                                 # header format: "N [id       ]: short - long"
-                                parts = header.split(']')
+                                parts = header.split("]")
                                 if len(parts) > 0:
                                     # extract id within brackets
-                                    start = header.find('[')
-                                    end = header.find(']')
+                                    start = header.find("[")
+                                    end = header.find("]")
                                     if start != -1 and end != -1:
-                                        card_id = header[start+1:end].strip()
+                                        card_id = header[start + 1 : end].strip()
                                         card_name = card_id
                                         break
 
                     if card_name:
                         for i in range(self.pa.get_device_count()):
                             info = self.pa.get_device_info_by_index(i)
-                            if card_name in info['name'] or card_name.replace('_','') in info['name'].replace('_',''):
+                            if card_name in info["name"] or card_name.replace(
+                                "_", ""
+                            ) in info["name"].replace("_", ""):
                                 device_index = i
-                                self.logger.info(f"Found device by card id match: {info['name']}")
+                                self.logger.info(
+                                    f"Found device by card id match: {info['name']}"
+                                )
                                 break
-                except Exception:
-                    # ignore parsing errors and continue to fallback
-                    pass
+                except Exception as e:
+                    # Ignore parsing errors but log for diagnostics
+                    self.logger.debug(
+                        "Failed parsing /proc/asound/cards: %s", e, exc_info=True
+                    )
 
             if device_index is None:
                 self.logger.warning(f"Device '{self.device}' not found, using default")
-        
+
         try:
             self.stream = self.pa.open(
                 format=format_type,
@@ -225,27 +243,29 @@ class ALSASourceNode(AudioSourceNode):
                 input=True,
                 input_device_index=device_index,
                 frames_per_buffer=self.buffer_size,
-                stream_callback=self._audio_callback
+                stream_callback=self._audio_callback,
             )
-            
+
             self.stream.start_stream()
-            self.logger.info(f"Started ALSA capture - {self.sample_rate}Hz, {self.channels}ch, {self.buffer_size} samples")
-        
+            self.logger.info(
+                f"Started ALSA capture - {self.sample_rate}Hz, {self.channels}ch, {self.buffer_size} samples"
+            )
+
         except Exception as e:
             self.logger.error(f"Failed to start audio stream: {e}")
             self.running = False
             raise
-    
+
     def _audio_callback(self, in_data, frame_count, time_info, status):
         """PyAudio callback - captures timestamp immediately."""
         import pyaudio
-        
+
         # CRITICAL: Capture timestamp FIRST for trilateration accuracy
         timestamp = time.time()
-        
+
         if status:
             self.logger.warning(f"Audio callback status: {status}")
-        
+
         try:
             # Convert bytes to numpy array
             if self.format_bits == 32:
@@ -263,7 +283,9 @@ class ALSASourceNode(AudioSourceNode):
                 samples = samples.reshape(-1, self.channels)
 
             # Debug: print buffer stats
-            self.logger.debug(f"Buffer stats: min={samples.min():.4f}, max={samples.max():.4f}, mean={samples.mean():.4f}, std={samples.std():.4f}")
+            self.logger.debug(
+                f"Buffer stats: min={samples.min():.4f}, max={samples.max():.4f}, mean={samples.mean():.4f}, std={samples.std():.4f}"
+            )
 
             # Create buffer with precise timestamp
             buffer = AudioBuffer(
@@ -271,7 +293,7 @@ class ALSASourceNode(AudioSourceNode):
                 timestamp=timestamp,
                 sample_rate=self.sample_rate,
                 channels=self.channels,
-                buffer_index=self.buffer_index
+                buffer_index=self.buffer_index,
             )
             self.buffer_index += 1
 
@@ -282,20 +304,20 @@ class ALSASourceNode(AudioSourceNode):
             self.logger.error(f"Error in audio callback: {e}")
 
         return (None, pyaudio.paContinue)
-    
+
     def stop(self):
         """Stop ALSA capture stream."""
         self.running = False
-        
+
         if self.stream:
             self.stream.stop_stream()
             self.stream.close()
-        
+
         if self.pa:
             self.pa.terminate()
-        
+
         self.logger.info("Stopped ALSA capture")
-    
+
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Source nodes don't process incoming buffers."""
         return None
@@ -303,13 +325,15 @@ class ALSASourceNode(AudioSourceNode):
 
 class FileSourceNode(AudioSourceNode):
     """Read from audio file for testing/replay."""
-    
-    def __init__(self,
-                 name: str = "FileSource",
-                 filepath: str = None,
-                 buffer_size: int = 1024,
-                 realtime: bool = True,
-                 loop: bool = False):
+
+    def __init__(
+        self,
+        name: str = "FileSource",
+        filepath: str = None,
+        buffer_size: int = 1024,
+        realtime: bool = True,
+        loop: bool = False,
+    ):
         # Will determine sample_rate and channels when file is opened
         super().__init__(name, sample_rate=48000, channels=1, buffer_size=buffer_size)
         self.filepath = filepath
@@ -317,34 +341,36 @@ class FileSourceNode(AudioSourceNode):
         self.loop = loop
         self.sf = None
         self.read_thread = None
-    
+
     def start(self):
         """Open file and start reading."""
         if not self.filepath:
             raise ValueError("No filepath specified")
-        
+
         try:
             import soundfile as sf
         except ImportError:
             raise ImportError("soundfile not installed. Run: pip install soundfile")
-        
+
         try:
             self.sf = sf.SoundFile(self.filepath)
             self.sample_rate = self.sf.samplerate
             self.channels = self.sf.channels
-            
+
             self.running = True
             self.read_thread = threading.Thread(target=self._read_loop)
             self.read_thread.daemon = True
             self.read_thread.start()
-            
-            logging.info(f"[{self.name}] Reading from {self.filepath} "
-                     f"({self.sample_rate}Hz, {self.channels}ch)")
-        
+
+            logging.info(
+                f"[{self.name}] Reading from {self.filepath} "
+                f"({self.sample_rate}Hz, {self.channels}ch)"
+            )
+
         except Exception as e:
             logging.error(f"[{self.name}] Failed to open file: {e}")
             raise
-    
+
     def _read_loop(self):
         """Read file in chunks."""
         while self.running:
@@ -377,19 +403,19 @@ class FileSourceNode(AudioSourceNode):
                 break
         self.running = False
         logging.info(f"[{self.name}] Finished reading file")
-    
+
     def stop(self):
         """Stop reading file."""
         self.running = False
-        
+
         if self.read_thread:
             self.read_thread.join(timeout=2.0)
-        
+
         if self.sf:
             self.sf.close()
-        
+
         logging.info(f"[{self.name}] Stopped file reading")
-    
+
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Source nodes don't process incoming buffers."""
         return None

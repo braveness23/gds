@@ -14,28 +14,25 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from sensors.gps import GPSReader, StaticLocationProvider, GPSData
+from sensors.gps import GPSData, GPSReader, StaticLocationProvider
 
 
 def check_gpsd_status():
     """Check if gpsd is running."""
     import subprocess
-    
+
     print("=" * 60)
     print("Checking gpsd status...")
     print("=" * 60)
-    
+
     try:
         result = subprocess.run(
-            ['systemctl', 'status', 'gpsd'],
-            capture_output=True,
-            text=True,
-            timeout=2
+            ["systemctl", "status", "gpsd"], capture_output=True, text=True, timeout=2
         )
-        
-        if 'Active: active (running)' in result.stdout:
+
+        if "Active: active (running)" in result.stdout:
             print("✅ gpsd is running")
             return True
         else:
@@ -44,7 +41,7 @@ def check_gpsd_status():
             print("  sudo systemctl start gpsd")
             print("  sudo systemctl enable gpsd")
             return False
-    
+
     except FileNotFoundError:
         print("❌ systemctl not found (not a systemd system)")
         return False
@@ -56,19 +53,19 @@ def check_gpsd_status():
 def check_gps_device():
     """Check for GPS device."""
     import os
-    
+
     print("\n" + "=" * 60)
     print("Checking for GPS device...")
     print("=" * 60)
-    
-    devices = ['/dev/ttyAMA0', '/dev/ttyUSB0', '/dev/ttyACM0', '/dev/serial0']
-    
+
+    devices = ["/dev/ttyAMA0", "/dev/ttyUSB0", "/dev/ttyACM0", "/dev/serial0"]
+
     found = False
     for device in devices:
         if os.path.exists(device):
             print(f"✅ Found GPS device: {device}")
             found = True
-    
+
     if not found:
         print("❌ No GPS device found")
         print("\nCommon GPS devices:")
@@ -78,7 +75,7 @@ def check_gps_device():
         print("  - GPS module is connected")
         print("  - UART is enabled (raspi-config)")
         print("  - Device permissions (may need to add user to dialout group)")
-    
+
     return found
 
 
@@ -87,7 +84,7 @@ def test_gpsd_connection():
     print("\n" + "=" * 60)
     print("Testing gpsd connection...")
     print("=" * 60)
-    
+
     try:
         reader = GPSReader()
         reader.connect()
@@ -116,29 +113,31 @@ def monitor_gps(duration=30):
     print(f"Monitoring GPS for {duration} seconds...")
     print("=" * 60)
     print()
-    
+
     reader = test_gpsd_connection()
     if not reader:
         return
-    
+
     # Callback to print position updates
     positions = []
-    
+
     def on_position(position: GPSData):
         positions.append(position)
-        
+
         if position.has_fix:
-            print(f"✅ FIX: ({position.latitude:.6f}, {position.longitude:.6f}, "
-                  f"{position.altitude:.1f}m) | {position.fix_type_name} | "
-                  f"Sats: {position.satellites} | HDOP: {position.hdop:.1f}")
+            print(
+                f"✅ FIX: ({position.latitude:.6f}, {position.longitude:.6f}, "
+                f"{position.altitude:.1f}m) | {position.fix_type_name} | "
+                f"Sats: {position.satellites} | HDOP: {position.hdop:.1f}"
+            )
         else:
-            print(f"❌ NO FIX | Searching for satellites...")
-    
+            print("❌ NO FIX | Searching for satellites...")
+
     reader.add_callback(on_position)
-    
+
     # Start reading
     reader.start()
-    
+
     # Monitor
     start_time = time.time()
     try:
@@ -146,43 +145,49 @@ def monitor_gps(duration=30):
             time.sleep(1)
     except KeyboardInterrupt:
         print("\n\nStopped by user")
-    
+
     reader.stop()
-    
+
     # Summary
     print("\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
-    
+
     if positions:
         fixes = [p for p in positions if p.has_fix]
-        
+
         print(f"Total positions: {len(positions)}")
         print(f"Positions with fix: {len(fixes)}")
         print(f"Fix rate: {len(fixes)/len(positions)*100:.1f}%")
-        
+
         if fixes:
             avg_lat = sum(p.latitude for p in fixes) / len(fixes)
             avg_lon = sum(p.longitude for p in fixes) / len(fixes)
             avg_alt = sum(p.altitude for p in fixes) / len(fixes)
             avg_hdop = sum(p.hdop for p in fixes) / len(fixes)
-            
-            print(f"\nAverage position:")
+
+            print("\nAverage position:")
             print(f"  Latitude:  {avg_lat:.6f}")
             print(f"  Longitude: {avg_lon:.6f}")
             print(f"  Altitude:  {avg_alt:.1f}m")
             print(f"  HDOP:      {avg_hdop:.1f}")
-            
+
             # Calculate position spread (accuracy estimate)
             if len(fixes) > 1:
-                lat_spread = max(p.latitude for p in fixes) - min(p.latitude for p in fixes)
-                lon_spread = max(p.longitude for p in fixes) - min(p.longitude for p in fixes)
-                
+                lat_spread = max(p.latitude for p in fixes) - min(
+                    p.latitude for p in fixes
+                )
+                lon_spread = max(p.longitude for p in fixes) - min(
+                    p.longitude for p in fixes
+                )
+
                 # Approximate meters (rough)
                 lat_meters = lat_spread * 111132.92
-                lon_meters = lon_spread * 111132.92 * 0.7  # Approximate for mid-latitudes
-                
-                print(f"\nPosition spread (accuracy estimate):")
+                lon_meters = (
+                    lon_spread * 111132.92 * 0.7
+                )  # Approximate for mid-latitudes
+
+                print("\nPosition spread (accuracy estimate):")
                 print(f"  Latitude:  {lat_meters:.1f}m")
                 print(f"  Longitude: {lon_meters:.1f}m")
         else:
@@ -201,23 +206,21 @@ def test_static_location():
     print("\n" + "=" * 60)
     print("Testing Static Location Provider...")
     print("=" * 60)
-    
+
     # Example location (San Francisco)
     provider = StaticLocationProvider(
-        latitude=37.7749,
-        longitude=-122.4194,
-        altitude=10.0
+        latitude=37.7749, longitude=-122.4194, altitude=10.0
     )
-    
+
     position = provider.get_position()
-    
-    print(f"\nStatic position:")
+
+    print("\nStatic position:")
     print(f"  Latitude:  {position.latitude:.6f}")
     print(f"  Longitude: {position.longitude:.6f}")
     print(f"  Altitude:  {position.altitude:.1f}m")
     print(f"  Fix type:  {position.fix_type_name}")
     print(f"  Has fix:   {position.has_fix}")
-    
+
     print("\n✅ Static location provider working correctly")
 
 
@@ -233,62 +236,66 @@ def interactive_mode():
     print("  s - Show statistics")
     print("  q - Quit")
     print()
-    
+
     reader = test_gpsd_connection()
     if not reader:
         return
-    
+
     reader.start()
-    
+
     try:
         while True:
             cmd = input("\n> ").strip().lower()
-            
-            if cmd == 'q':
+
+            if cmd == "q":
                 break
-            elif cmd == 'p':
+            elif cmd == "p":
                 pos = reader.get_position()
                 if pos:
                     if pos.has_fix:
-                        print(f"Position: ({pos.latitude:.6f}, {pos.longitude:.6f}, "
-                              f"{pos.altitude:.1f}m)")
+                        print(
+                            f"Position: ({pos.latitude:.6f}, {pos.longitude:.6f}, "
+                            f"{pos.altitude:.1f}m)"
+                        )
                         print(f"Fix: {pos.fix_type_name}, HDOP: {pos.hdop:.1f}")
                     else:
                         print("No GPS fix")
                 else:
                     print("No position data yet")
-            
-            elif cmd == 'm':
+
+            elif cmd == "m":
                 print("Monitoring for 30 seconds...")
                 start = time.time()
                 while time.time() - start < 30:
                     pos = reader.get_position()
                     if pos and pos.has_fix:
-                        print(f"  {pos.latitude:.6f}, {pos.longitude:.6f}, "
-                              f"{pos.altitude:.1f}m")
+                        print(
+                            f"  {pos.latitude:.6f}, {pos.longitude:.6f}, "
+                            f"{pos.altitude:.1f}m"
+                        )
                     else:
                         print("  No fix")
                     time.sleep(2)
-            
-            elif cmd == 'w':
+
+            elif cmd == "w":
                 print("Waiting for GPS fix (60s timeout)...")
                 if reader.wait_for_fix(60):
                     print("✅ Fix acquired!")
                 else:
                     print("❌ Timeout - no fix")
-            
-            elif cmd == 's':
+
+            elif cmd == "s":
                 stats = reader.get_stats()
                 print("Statistics:")
                 for key, value in stats.items():
                     print(f"  {key}: {value}")
-            
+
             else:
                 print("Unknown command")
-    
+
     except KeyboardInterrupt:
         print("\n")
-    
+
     finally:
         reader.stop()
 
@@ -296,49 +303,52 @@ def interactive_mode():
 def main():
     """Main entry point."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description='GPS Reader Test Tool')
-    parser.add_argument('--check', action='store_true',
-                       help='Check gpsd status and GPS device')
-    parser.add_argument('--test', action='store_true',
-                       help='Test gpsd connection')
-    parser.add_argument('--monitor', type=int, metavar='SECONDS',
-                       help='Monitor GPS for N seconds')
-    parser.add_argument('--static', action='store_true',
-                       help='Test static location provider')
-    parser.add_argument('--interactive', action='store_true',
-                       help='Interactive mode')
-    
+
+    parser = argparse.ArgumentParser(description="GPS Reader Test Tool")
+    parser.add_argument(
+        "--check", action="store_true", help="Check gpsd status and GPS device"
+    )
+    parser.add_argument("--test", action="store_true", help="Test gpsd connection")
+    parser.add_argument(
+        "--monitor", type=int, metavar="SECONDS", help="Monitor GPS for N seconds"
+    )
+    parser.add_argument(
+        "--static", action="store_true", help="Test static location provider"
+    )
+    parser.add_argument("--interactive", action="store_true", help="Interactive mode")
+
     args = parser.parse_args()
-    
-    print("""
+
+    print(
+        """
 ╔════════════════════════════════════════════════════════════╗
 ║              GPS Reader Test Tool                          ║
 ╚════════════════════════════════════════════════════════════╝
-    """)
-    
+    """
+    )
+
     if args.check:
         check_gpsd_status()
         check_gps_device()
-    
+
     elif args.test:
         check_gpsd_status()
         test_gpsd_connection()
-    
+
     elif args.monitor:
         monitor_gps(args.monitor)
-    
+
     elif args.static:
         test_static_location()
-    
+
     elif args.interactive:
         interactive_mode()
-    
+
     else:
         # Run all checks by default
         check_gpsd_status()
         check_gps_device()
-        
+
         print("\n" + "=" * 60)
         print("Quick Test Options:")
         print("=" * 60)

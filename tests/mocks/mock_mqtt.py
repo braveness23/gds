@@ -2,13 +2,14 @@
 
 import threading
 import time
-from typing import Dict, List, Callable, Any, Optional
 from dataclasses import dataclass, field
+from typing import Callable, List, Optional
 
 
 @dataclass
 class MockPublishResult:
     """Mock result from publish operation."""
+
     rc: int = 0  # 0 = success, 1+ = failure
     mid: int = 1  # message ID
 
@@ -16,6 +17,7 @@ class MockPublishResult:
 @dataclass
 class MockMessage:
     """Mock MQTT message."""
+
     topic: str
     payload: bytes
     qos: int
@@ -36,15 +38,17 @@ class MockMQTTClient:
     """
 
     # Class-level tracking for all instances
-    _instances: List['MockMQTTClient'] = []
+    _instances: List["MockMQTTClient"] = []
     _lock = threading.Lock()
 
-    def __init__(self,
-                 client_id: str = "",
-                 clean_session: bool = True,
-                 fail_on_connect: bool = False,
-                 fail_on_publish: bool = False,
-                 connection_delay: float = 0.0):
+    def __init__(
+        self,
+        client_id: str = "",
+        clean_session: bool = True,
+        fail_on_connect: bool = False,
+        fail_on_publish: bool = False,
+        connection_delay: float = 0.0,
+    ):
         """
         Initialize mock client.
 
@@ -95,8 +99,15 @@ class MockMQTTClient:
         self._username = username
         self._password = password
 
-    def tls_set(self, ca_certs=None, certfile=None, keyfile=None,
-                cert_reqs=None, tls_version=None, ciphers=None):
+    def tls_set(
+        self,
+        ca_certs=None,
+        certfile=None,
+        keyfile=None,
+        cert_reqs=None,
+        tls_version=None,
+        ciphers=None,
+    ):
         """Enable TLS."""
         self._tls_set = True
 
@@ -128,6 +139,7 @@ class MockMQTTClient:
         if self.on_connect:
             # Call the callback in a separate thread to avoid blocking
             import threading
+
             def call_callback():
                 time.sleep(0.01)  # Small delay to simulate async
                 try:
@@ -135,7 +147,9 @@ class MockMQTTClient:
                 except Exception as e:
                     print(f"[MockMQTTClient] Exception in on_connect callback: {e}")
                     import traceback
+
                     traceback.print_exc()
+
             thread = threading.Thread(target=call_callback, daemon=True)
             thread.start()
 
@@ -180,7 +194,7 @@ class MockMQTTClient:
             topic=topic,
             payload=payload if isinstance(payload, bytes) else str(payload).encode(),
             qos=qos,
-            retain=retain
+            retain=retain,
         )
         self.published_messages.append(message)
 
@@ -197,7 +211,9 @@ class MockMQTTClient:
         # Return (result, mid)
         return (0, len(self.subscriptions))
 
-    def get_published_messages(self, topic_filter: Optional[str] = None) -> List[MockMessage]:
+    def get_published_messages(
+        self, topic_filter: Optional[str] = None
+    ) -> List[MockMessage]:
         """
         Get published messages, optionally filtered by topic.
 
@@ -219,16 +235,16 @@ class MockMQTTClient:
         if pattern == topic:
             return True
 
-        topic_parts = topic.split('/')
-        pattern_parts = pattern.split('/')
+        topic_parts = topic.split("/")
+        pattern_parts = pattern.split("/")
 
         if len(pattern_parts) > len(topic_parts):
             return False
 
         for i, pattern_part in enumerate(pattern_parts):
-            if pattern_part == '#':
+            if pattern_part == "#":
                 return True
-            if pattern_part == '+':
+            if pattern_part == "+":
                 continue
             if i >= len(topic_parts) or pattern_part != topic_parts[i]:
                 return False

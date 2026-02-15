@@ -6,10 +6,11 @@ servers, dashboards, and other nodes.
 """
 
 import json
-import time
 import logging
 import threading
-from typing import Optional, Dict, Any
+import time
+from typing import Any, Dict, Optional
+
 from src.core.event_bus import Event, EventType
 
 
@@ -24,20 +25,22 @@ class MQTTOutputNode:
     - Central broker receives from all nodes
     """
 
-    def __init__(self,
-                 broker: str,
-                 port: int = 1883,
-                 topic: str = "gunshot/detections",
-                 node_id: str = "gunshot_node",
-                 qos: int = 1,
-                 username: Optional[str] = None,
-                 password: Optional[str] = None,
-                 use_tls: bool = False,
-                 tls_ca_cert: Optional[str] = None,
-                 tls_insecure: bool = False,
-                 event_bus=None,
-                 gps_reader=None,
-                 env_sensor=None):
+    def __init__(
+        self,
+        broker: str,
+        port: int = 1883,
+        topic: str = "gunshot/detections",
+        node_id: str = "gunshot_node",
+        qos: int = 1,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        use_tls: bool = False,
+        tls_ca_cert: Optional[str] = None,
+        tls_insecure: bool = False,
+        event_bus=None,
+        gps_reader=None,
+        env_sensor=None,
+    ):
         """
         Initialize MQTT output.
 
@@ -53,7 +56,7 @@ class MQTTOutputNode:
             gps_reader: GPS reader for location data (optional)
             env_sensor: Environmental sensor for conditions (optional)
         """
-        self.logger = logging.getLogger('MQTTOutput')
+        self.logger = logging.getLogger("MQTTOutput")
         self.broker = broker
         self.port = port
         self.base_topic = topic
@@ -88,8 +91,10 @@ class MQTTOutputNode:
         self.client = mqtt.Client(client_id=f"{self.node_id}_{int(time.time())}")
 
         # Increase inflight message limit for high-rate detections
-        self.client.max_inflight_messages_set(200)  # Default is 20, increase for burst events
-        self.client.max_queued_messages_set(1000)   # Queue more messages in memory
+        self.client.max_inflight_messages_set(
+            200
+        )  # Default is 20, increase for burst events
+        self.client.max_queued_messages_set(1000)  # Queue more messages in memory
 
         # Set callbacks
         self.client.on_connect = self._on_connect
@@ -104,6 +109,7 @@ class MQTTOutputNode:
         # explicitly allow insecure (self-signed) certificates via config.
         if self.use_tls:
             import ssl
+
             try:
                 if self.tls_ca_cert:
                     # Use provided CA bundle for verification
@@ -111,20 +117,25 @@ class MQTTOutputNode:
                     self.client.tls_set(ca_certs=self.tls_ca_cert)
                 elif self.tls_insecure:
                     # Accept self-signed / insecure certs
-                    self.logger.warning("TLS enabled with insecure mode: certificate verification disabled")
+                    self.logger.warning(
+                        "TLS enabled with insecure mode: certificate verification disabled"
+                    )
                     self.client.tls_set(cert_reqs=ssl.CERT_NONE)
                     self.client.tls_insecure_set(True)
                 else:
                     # Default: use system CA store and require verification
                     self.logger.info("TLS enabled with system CA verification")
                     self.client.tls_set()
-            except Exception as e:
-                self.logger.error(f"Failed to configure TLS: {e}. Falling back to insecure mode.")
+            except Exception:
+                self.logger.exception(
+                    "Failed to configure TLS, attempting insecure fallback"
+                )
                 # Fallback: accept self-signed to avoid blocking connectivity
                 try:
                     self.client.tls_set(cert_reqs=ssl.CERT_NONE)
                     self.client.tls_insecure_set(True)
                 except Exception:
+                    self.logger.exception("TLS insecure fallback failed, raising")
                     # If even fallback fails, raise to let reconnect logic handle it
                     raise
 
@@ -202,8 +213,8 @@ class MQTTOutputNode:
 
         # Publish to multiple topics for different consumers
         topics = [
-            f"{self.base_topic}",                      # All detections
-            f"gunshot/{self.node_id}/detections",      # This node's detections
+            f"{self.base_topic}",  # All detections
+            f"gunshot/{self.node_id}/detections",  # This node's detections
         ]
 
         for topic in topics:
@@ -218,7 +229,7 @@ class MQTTOutputNode:
             "node_id": self.node_id,
             "timestamp": event.timestamp,
             "type": "health",
-            "data": event.data
+            "data": event.data,
         }
 
         topic = f"gunshot/{self.node_id}/health"
@@ -233,7 +244,7 @@ class MQTTOutputNode:
             "node_id": self.node_id,
             "timestamp": event.timestamp,
             "type": "system",
-            "data": event.data
+            "data": event.data,
         }
 
         topic = f"gunshot/{self.node_id}/status"
@@ -244,7 +255,7 @@ class MQTTOutputNode:
         message = {
             "node_id": self.node_id,
             "timestamp": event.timestamp,
-            "detection": event.data
+            "detection": event.data,
         }
 
         # Add GPS location if available
@@ -257,7 +268,7 @@ class MQTTOutputNode:
                         "longitude": position.longitude,
                         "altitude": position.altitude,
                         "fix_quality": position.fix_quality,
-                        "satellites": position.satellites
+                        "satellites": position.satellites,
                     }
             except Exception as e:
                 self.logger.warning(f"Failed to get GPS position: {e}")
@@ -270,7 +281,7 @@ class MQTTOutputNode:
                     message["environment"] = {
                         "temperature": env_data.temperature,
                         "humidity": env_data.humidity,
-                        "pressure": env_data.pressure
+                        "pressure": env_data.pressure,
                     }
             except Exception as e:
                 self.logger.warning(f"Failed to get environmental data: {e}")
@@ -280,7 +291,23 @@ class MQTTOutputNode:
     def _publish(self, topic: str, message: Dict[str, Any]):
         """Publish message to MQTT topic."""
         try:
-            payload = json.dumps(message)
+            # Ensure non-serializable numeric types (e.g., numpy.float32) are converted
+            def _json_default(o):
+                # numpy types implement .item() which returns native Python types
+                if hasattr(o, "item"):
+                    try:
+                        return o.item()
+                    except Exception as e:
+                        # Conversion to native type failed; log at debug level and fall back to str()
+                        self.logger.debug(
+                            "_json_default: failed to convert object via .item(): %s",
+                            e,
+                            exc_info=True,
+                        )
+                # Fallback to string conversion
+                return str(o)
+
+            payload = json.dumps(message, default=_json_default)
             result = self.client.publish(topic, payload, qos=self.qos)
 
             if result.rc == 0:
@@ -303,7 +330,9 @@ class MQTTOutputNode:
             "node_id": self.node_id,
             "timestamp": time.time(),
             "status": status,
-            "uptime": time.time() - self.start_time if hasattr(self, 'start_time') else 0
+            "uptime": time.time() - self.start_time
+            if hasattr(self, "start_time")
+            else 0,
         }
 
         topic = f"gunshot/{self.node_id}/status"
@@ -320,8 +349,10 @@ class MQTTOutputNode:
             self.client.loop_stop()
             self.client.disconnect()
 
-        self.logger.info(f"Disconnected (published {self.messages_published} messages, "
-                        f"{self.messages_failed} failed)")
+        self.logger.info(
+            f"Disconnected (published {self.messages_published} messages, "
+            f"{self.messages_failed} failed)"
+        )
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics."""
@@ -329,7 +360,7 @@ class MQTTOutputNode:
             "connected": self.connected,
             "messages_published": self.messages_published,
             "messages_failed": self.messages_failed,
-            "last_publish_time": self.last_publish_time
+            "last_publish_time": self.last_publish_time,
         }
 
 
@@ -344,13 +375,15 @@ class MQTTFleetCoordinator:
     - Send commands to nodes
     """
 
-    def __init__(self,
-                 broker: str,
-                 port: int = 1883,
-                 username: Optional[str] = None,
-                 password: Optional[str] = None,
-                 use_tls: bool = False):
-        self.logger = logging.getLogger('FleetCoordinator')
+    def __init__(
+        self,
+        broker: str,
+        port: int = 1883,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        use_tls: bool = False,
+    ):
+        self.logger = logging.getLogger("FleetCoordinator")
         self.broker = broker
         self.port = port
         self.username = username
@@ -364,7 +397,7 @@ class MQTTFleetCoordinator:
 
         # Track nodes
         self.active_nodes = {}  # node_id -> last_seen_time
-        self.detections = []    # List of all detections
+        self.detections = []  # List of all detections
 
     def connect(self):
         """Connect to MQTT broker and subscribe to topics."""
@@ -386,6 +419,7 @@ class MQTTFleetCoordinator:
         # Enable TLS if requested
         if self.use_tls:
             import ssl
+
             self.client.tls_set(cert_reqs=ssl.CERT_NONE)
             self.client.tls_insecure_set(True)
 
@@ -413,18 +447,17 @@ class MQTTFleetCoordinator:
         """Callback when message received."""
         try:
             payload = json.loads(msg.payload.decode())
-            topic_parts = msg.topic.split('/')
 
             # Update active nodes
-            if 'node_id' in payload:
-                self.active_nodes[payload['node_id']] = time.time()
+            if "node_id" in payload:
+                self.active_nodes[payload["node_id"]] = time.time()
 
             # Route to appropriate handler
-            if 'detections' in msg.topic:
+            if "detections" in msg.topic:
                 self._handle_detection(payload)
-            elif 'health' in msg.topic:
+            elif "health" in msg.topic:
                 self._handle_health(payload)
-            elif 'status' in msg.topic:
+            elif "status" in msg.topic:
                 self._handle_status(payload)
 
         except Exception as e:
@@ -434,8 +467,10 @@ class MQTTFleetCoordinator:
         """Handle detection from a node."""
         self.detections.append(payload)
 
-        self.logger.info(f"Detection from {payload.get('node_id', 'unknown')} "
-                        f"at {payload.get('timestamp', 0):.3f}s")
+        self.logger.info(
+            f"Detection from {payload.get('node_id', 'unknown')} "
+            f"at {payload.get('timestamp', 0):.3f}s"
+        )
 
         if self.detection_callback:
             self.detection_callback(payload)
@@ -447,12 +482,12 @@ class MQTTFleetCoordinator:
 
     def _handle_status(self, payload: Dict[str, Any]):
         """Handle status update from a node."""
-        node_id = payload.get('node_id')
-        status = payload.get('status')
+        node_id = payload.get("node_id")
+        status = payload.get("status")
 
-        if status == 'online':
+        if status == "online":
             self.logger.info(f"Node {node_id} came online")
-        elif status == 'offline':
+        elif status == "offline":
             self.logger.info(f"Node {node_id} went offline")
 
     def set_detection_callback(self, callback):
@@ -470,11 +505,13 @@ class MQTTFleetCoordinator:
 
         for node_id, last_seen in self.active_nodes.items():
             if current_time - last_seen < timeout:
-                active.append({
-                    'node_id': node_id,
-                    'last_seen': last_seen,
-                    'age': current_time - last_seen
-                })
+                active.append(
+                    {
+                        "node_id": node_id,
+                        "last_seen": last_seen,
+                        "age": current_time - last_seen,
+                    }
+                )
 
         return active
 
@@ -483,8 +520,8 @@ class MQTTFleetCoordinator:
         current_time = time.time()
         cutoff = current_time - window
 
-        recent = [d for d in self.detections if d.get('timestamp', 0) > cutoff]
-        return sorted(recent, key=lambda x: x.get('timestamp', 0))
+        recent = [d for d in self.detections if d.get("timestamp", 0) > cutoff]
+        return sorted(recent, key=lambda x: x.get("timestamp", 0))
 
     def disconnect(self):
         """Disconnect from broker."""

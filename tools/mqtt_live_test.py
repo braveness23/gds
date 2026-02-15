@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-import yaml
-import time
 import ssl
-import threading
 import sys
+import threading
+import time
+
+import yaml
 
 try:
     import paho.mqtt.client as mqtt
@@ -11,33 +12,36 @@ except Exception as e:
     print("paho-mqtt not available:", e)
     sys.exit(2)
 
-CONFIG_PATH = 'config.yaml'
+CONFIG_PATH = "config.yaml"
+
 
 def load_config(path):
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         return yaml.safe_load(f)
 
 
 def main():
     cfg = load_config(CONFIG_PATH)
-    mqtt_cfg = cfg.get('output', {}).get('mqtt', {})
+    mqtt_cfg = cfg.get("output", {}).get("mqtt", {})
 
-    broker = mqtt_cfg.get('broker', 'localhost')
-    port = mqtt_cfg.get('port', 1883)
-    use_tls = mqtt_cfg.get('use_tls', False)
-    tls_ca = mqtt_cfg.get('tls_ca_cert')
-    tls_insecure = mqtt_cfg.get('tls_insecure', False)
-    username = mqtt_cfg.get('username')
-    password = mqtt_cfg.get('password')
+    broker = mqtt_cfg.get("broker", "localhost")
+    port = mqtt_cfg.get("port", 1883)
+    use_tls = mqtt_cfg.get("use_tls", False)
+    tls_ca = mqtt_cfg.get("tls_ca_cert")
+    tls_insecure = mqtt_cfg.get("tls_insecure", False)
+    username = mqtt_cfg.get("username")
+    password = mqtt_cfg.get("password")
 
-    print(f"Attempting connect -> {broker}:{port} use_tls={use_tls} tls_ca={tls_ca} tls_insecure={tls_insecure}")
+    print(
+        f"Attempting connect -> {broker}:{port} use_tls={use_tls} tls_ca={tls_ca} tls_insecure={tls_insecure}"
+    )
 
     evt = threading.Event()
-    result = {'rc': None}
+    result = {"rc": None}
     pub_evt = threading.Event()
 
     def on_connect(client, userdata, flags, rc):
-        result['rc'] = rc
+        result["rc"] = rc
         if rc == 0:
             print("on_connect: rc=0 (success)")
         else:
@@ -100,15 +104,16 @@ def main():
 
     # If connected rc==0, publish a test message then disconnect
     try:
-        topic = mqtt_cfg.get('topic', 'gunshot/detections')
+        topic = mqtt_cfg.get("topic", "gunshot/detections")
         payload = {
-            'node_id': mqtt_cfg.get('username', 'test_node'),
-            'test': 'live_publish',
-            'timestamp': time.time()
+            "node_id": mqtt_cfg.get("username", "test_node"),
+            "test": "live_publish",
+            "timestamp": time.time(),
         }
         import json
+
         print(f"Publishing test message to {topic}")
-        info = client.publish(topic, json.dumps(payload), qos=mqtt_cfg.get('qos', 1))
+        info = client.publish(topic, json.dumps(payload), qos=mqtt_cfg.get("qos", 1))
         # Wait for publish callback (ack) when QoS >=1
         if not pub_evt.wait(8):
             print("Timed out waiting for publish acknowledgement")
@@ -123,8 +128,9 @@ def main():
         print("Disconnect failed:", e)
     client.loop_stop()
 
-    print("Test complete, on_connect rc=", result['rc'])
+    print("Test complete, on_connect rc=", result["rc"])
     sys.exit(0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

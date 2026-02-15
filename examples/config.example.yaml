@@ -39,7 +39,7 @@ sensors:
 # AUDIO INPUT
 # ============================================================================
 audio:
-  source_type: "alsa" # Options: "alsa", "i2s_direct", "file"
+  source_type: "alsa" # Options: "alsa", "file"
   device: "hw:0,0" # Use 'arecord -l' to find your device
   sample_rate: 48000 # Higher is better for gunshots
   channels: 1 # Mono is sufficient
@@ -69,13 +69,6 @@ detection:
     threshold: 0.5 # Adjust sensitivity (0.0-1.0)
     silence_threshold: -70 # Ignore quiet audio (dB)
 
-  # Machine Learning - High accuracy (requires trained model)
-  ml:
-    enabled: false
-    model_path: "/models/gunshot_model.pth"
-    confidence_threshold: 0.8
-    window_size: 4096
-
   # Simple threshold - Fast fallback
   threshold:
     enabled: false
@@ -96,35 +89,10 @@ output:
     username: gunshot_detector # Set if broker requires auth
     password: Clavicle-Barge-Hull2
 
-  # Meshtastic - Long-range mesh network
-  meshtastic:
-    enabled: false
-    device: "/dev/ttyUSB0" # Or "tcp:192.168.1.100" for network
-    channel: 0
-    send_position_updates: true
-    position_update_interval: 300
-    send_telemetry: true
-    telemetry_interval: 600
-
-  # LoRa - Alternative long-range option
-  lora:
-    enabled: false
-    device: "/dev/ttyUSB1"
-    frequency: 915000000 # US: 915MHz, EU: 868MHz
-    bandwidth: 125000
-    spreading_factor: 7
-
   # File Logger - Always keep local logs
   file_logger:
     enabled: true
     path: "/var/log/detections.jsonl"
-
-  # Buffer Saver - Save audio around detections
-  buffer_saver:
-    enabled: false # Enable for forensic analysis
-    output_dir: "/data/detections"
-    pre_trigger_buffers: 10 # Save 10 buffers before detection
-    post_trigger_buffers: 20 # Save 20 buffers after
 
 # ============================================================================
 # MONITORING - System health

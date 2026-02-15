@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Setup script for Gunshot Detection System."""
 
-from setuptools import setup, find_packages
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 # Read README
 readme_file = Path(__file__).parent / "README.md"
@@ -32,24 +33,24 @@ setup(
         "ntplib>=0.3.4",
     ],
     extras_require={
-        'sensors': [
-            'gps>=3.19',
-            'adafruit-circuitpython-bme280>=2.6.0',
-            'adafruit-circuitpython-dht>=3.7.0',
-            'adafruit-blinka>=8.0.0',
+        "sensors": [
+            "gps>=3.19",
+            "adafruit-circuitpython-bme280>=2.6.0",
+            "adafruit-circuitpython-dht>=3.7.0",
+            "adafruit-blinka>=8.0.0",
         ],
-        'meshtastic': [
-            'meshtastic>=2.0.0',
+        "meshtastic": [
+            "meshtastic>=2.0.0",
         ],
-        'dev': [
-            'pytest>=7.0.0',
-            'black>=22.0.0',
-            'flake8>=4.0.0',
+        "dev": [
+            "pytest>=7.0.0",
+            "black>=22.0.0",
+            "flake8>=4.0.0",
         ],
     },
     entry_points={
-        'console_scripts': [
-            'gunshot-detector=main:main',
+        "console_scripts": [
+            "gunshot-detector=main:main",
         ],
     },
     classifiers=[

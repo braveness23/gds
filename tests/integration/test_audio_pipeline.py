@@ -1,12 +1,14 @@
 """Integration tests for audio processing pipeline."""
 
-import pytest
-import numpy as np
 import time
-from src.core.event_bus import EventType
+
+import numpy as np
+import pytest
+
 from src.audio.audio_nodes import AudioBuffer
-from src.processing.processing_nodes import DCRemovalNode, HighPassFilterNode, GainNode
+from src.core.event_bus import EventType
 from src.detection.detection_nodes import ThresholdDetectorNode
+from src.processing.processing_nodes import DCRemovalNode, GainNode, HighPassFilterNode
 
 
 class TestAudioPipeline:
@@ -26,7 +28,7 @@ class TestAudioPipeline:
             name="test_threshold",
             threshold_db=-15.0,
             min_duration_ms=1.0,
-            event_bus=event_bus
+            event_bus=event_bus,
         )
 
         # Process silent audio
@@ -51,7 +53,7 @@ class TestAudioPipeline:
             name="test_threshold",
             threshold_db=-40.0,
             min_duration_ms=1.0,
-            event_bus=event_bus
+            event_bus=event_bus,
         )
 
         # Process impulse audio
@@ -61,7 +63,7 @@ class TestAudioPipeline:
 
         # Should detect the impulse
         assert len(detections) >= 1
-        assert detections[0].data['detector_type'] == 'threshold'
+        assert detections[0].data["detector_type"] == "threshold"
 
     def test_dc_removal_processing(self, event_bus, test_config):
         """Test DC removal node processes audio correctly."""
@@ -72,7 +74,7 @@ class TestAudioPipeline:
             timestamp=100.0,
             sample_rate=48000,
             channels=1,
-            buffer_index=0
+            buffer_index=0,
         )
 
         # Create DC removal node
@@ -90,11 +92,7 @@ class TestAudioPipeline:
         low_freq = sine_wave_audio(100)
 
         # Create highpass filter (cutoff at 1000 Hz)
-        highpass = HighPassFilterNode(
-            name="hp_test",
-            cutoff_freq=1000.0,
-            order=4
-        )
+        highpass = HighPassFilterNode(name="hp_test", cutoff_freq=1000.0, order=4)
 
         # Process
         processed = highpass.process(low_freq)
@@ -118,10 +116,12 @@ class TestAudioPipeline:
         original_rms = np.sqrt(np.mean(noise_audio.samples**2))
         processed_rms = np.sqrt(np.mean(processed.samples**2))
 
-        expected_gain = 10**(6.0 / 20.0)  # dB to linear
+        expected_gain = 10 ** (6.0 / 20.0)  # dB to linear
         assert abs(processed_rms / original_rms - expected_gain) < 0.1
 
-    @pytest.mark.skip(reason="Highpass filter significantly attenuates impulse test signal")
+    @pytest.mark.skip(
+        reason="Highpass filter significantly attenuates impulse test signal"
+    )
     def test_full_processing_chain(self, event_bus, impulse_audio, test_config):
         """Test complete processing chain: DC removal → Highpass → Detection."""
         detections = []
@@ -138,7 +138,7 @@ class TestAudioPipeline:
             name="detector",
             threshold_db=-40.0,
             min_duration_ms=1.0,
-            event_bus=event_bus
+            event_bus=event_bus,
         )
 
         # Process through chain

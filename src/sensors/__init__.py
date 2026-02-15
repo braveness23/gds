@@ -7,18 +7,23 @@ This package provides:
 """
 
 from src.sensors.base import BaseSensor
-from src.sensors.environmental import EnvironmentalData, BME280Sensor, DHTSensor, create_environmental_sensor
+from src.sensors.environmental import (
+    BME280Sensor,
+    DHTSensor,
+    EnvironmentalData,
+    create_environmental_sensor,
+)
 from src.sensors.gps import GPSData, GPSReader, create_gps_reader
 from src.sensors.static_gps import StaticGPSDevice
 
 __all__ = [
-    'BaseSensor',
-    'EnvironmentalData',
-    'BME280Sensor',
-    'DHTSensor',
-    'create_environmental_sensor',
-    'GPSData',
-    'GPSReader',
-    'StaticGPSDevice',
-    'create_gps_reader',
+    "BaseSensor",
+    "EnvironmentalData",
+    "BME280Sensor",
+    "DHTSensor",
+    "create_environmental_sensor",
+    "GPSData",
+    "GPSReader",
+    "StaticGPSDevice",
+    "create_gps_reader",
 ]

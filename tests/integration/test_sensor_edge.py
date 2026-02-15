@@ -1,13 +1,20 @@
-from src.sensors.base import BaseSensor
-from threading import Thread
 import time
+from threading import Thread
+
+from src.sensors.base import BaseSensor
+
 
 class SlowSensor(BaseSensor):
-    def _connect(self): self.connected = True
+    def _connect(self):
+        self.connected = True
+
     def _read_sensor(self):
         time.sleep(0.2)
-        return type('Data', (), {'to_dict': lambda self: {'val': 1}})()
-    def _disconnect(self): self.connected = False
+        return type("Data", (), {"to_dict": lambda self: {"val": 1}})()
+
+    def _disconnect(self):
+        self.connected = False
+
 
 def test_sensor_update_loop_timeout(monkeypatch):
     sensor = SlowSensor(sensor_name="Slow")
@@ -21,9 +28,13 @@ def test_sensor_update_loop_timeout(monkeypatch):
     t.join(timeout=1)
     assert sensor.get_data() is not None
 
+
 def test_sensor_callback_error():
     sensor = SlowSensor(sensor_name="Slow")
-    def bad_callback(data): raise Exception("Callback fail")
+
+    def bad_callback(data):
+        raise Exception("Callback fail")
+
     sensor.add_callback(bad_callback)
     sensor.connect()
     sensor.running = True

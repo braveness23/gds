@@ -1,3 +1,4 @@
+# Audio module initialization
+# Main audio nodes are imported directly from audio_nodes.py
 
-# Expose I2SRawSourceNode for direct I2S input
-from .i2s_raw_source import I2SRawSourceNode
+__all__ = []

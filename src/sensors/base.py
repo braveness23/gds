@@ -8,29 +8,29 @@ Provides common functionality for all sensors:
 - Thread-safe data access
 """
 
-import time
 import logging
 import threading
+import time
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, List, Generic, TypeVar, Dict, Any
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+
 from src.core.event_bus import EventType
 
-
 # Generic type for sensor data
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class BaseSensor(ABC, Generic[T]):
     """
     Abstract base class for all sensors.
-    
+
     Provides common infrastructure for:
     - Connection management
     - Background data polling
     - Callback notifications
     - Event bus integration
     - Statistics tracking
-    
+
     Subclasses must implement:
     - _connect(): Establish connection to sensor hardware
     - _read_sensor(): Read data from sensor
@@ -53,15 +53,17 @@ class BaseSensor(ABC, Generic[T]):
             self.connected = False
             self.logger.error(f"Connection failed: {e}")
             raise
-    
-    def __init__(self,
-                 update_interval: float = 1.0,
-                 event_bus=None,
-                 event_type: Optional[EventType] = None,
-                 sensor_name: str = "Sensor"):
+
+    def __init__(
+        self,
+        update_interval: float = 1.0,
+        event_bus=None,
+        event_type: Optional[EventType] = None,
+        sensor_name: str = "Sensor",
+    ):
         """
         Initialize base sensor.
-        
+
         Args:
             update_interval: How often to poll sensor (seconds)
             event_type: Event type to publish (e.g., EventType.GPS, EventType.ENVIRONMENTAL)
@@ -84,11 +86,12 @@ class BaseSensor(ABC, Generic[T]):
         self.update_thread: Optional[threading.Thread] = None
         # Statistics
         self.stats = {
-            'readings_taken': 0,
-            'read_errors': 0,
-            'last_reading_time': None,
-            'start_time': None
+            "readings_taken": 0,
+            "read_errors": 0,
+            "last_reading_time": None,
+            "start_time": None,
         }
+
     @abstractmethod
     def _connect(self):
         """
@@ -115,7 +118,7 @@ class BaseSensor(ABC, Generic[T]):
         Optional - override if sensor needs cleanup.
         """
         pass
-    
+
     def start(self):
         """Start sensor reading thread."""
         if self.running:
@@ -126,11 +129,11 @@ class BaseSensor(ABC, Generic[T]):
             self.connect()
 
         self.running = True
-        self.stats['start_time'] = time.time()
+        self.stats["start_time"] = time.time()
         # Start background thread
         self.update_thread = threading.Thread(target=self._update_loop, daemon=True)
         self.update_thread.start()
-    
+
     def stop(self):
         """Stop sensor reading thread."""
         if not self.running:
@@ -145,14 +148,14 @@ class BaseSensor(ABC, Generic[T]):
 
         try:
             self._disconnect()
-        except Exception as e:
-            self.logger.error(f"Disconnect error: {e}")
+        except Exception:
+            self.logger.exception("Disconnect error")
 
         self.connected = False
 
         self.logger.info("Stopped")
         self._print_stats()
-    
+
     def _update_loop(self):
         """Background thread that polls sensor at regular intervals."""
         self.logger.info("Update loop started")
@@ -164,8 +167,8 @@ class BaseSensor(ABC, Generic[T]):
 
                 if data is not None:
                     # Update statistics
-                    self.stats['readings_taken'] += 1
-                    self.stats['last_reading_time'] = time.time()
+                    self.stats["readings_taken"] += 1
+                    self.stats["last_reading_time"] = time.time()
 
                     # Store data (thread-safe)
                     with self.data_lock:
@@ -177,44 +180,47 @@ class BaseSensor(ABC, Generic[T]):
                     # Publish to event bus
                     if self.event_bus and self.event_type:
                         from core.event_bus import Event
+
                         event = Event(
                             event_type=self.event_type,
                             timestamp=time.time(),
                             source=self.sensor_name,
-                            data=data.to_dict() if hasattr(data, 'to_dict') else {'data': str(data)}
+                            data=data.to_dict()
+                            if hasattr(data, "to_dict")
+                            else {"data": str(data)},
                         )
                         self.event_bus.publish(event)
                 else:
-                    self.stats['read_errors'] += 1
+                    self.stats["read_errors"] += 1
 
-            except Exception as e:
-                self.stats['read_errors'] += 1
-                self.logger.error(f"Read error: {e}")
+            except Exception:
+                self.stats["read_errors"] += 1
+                self.logger.exception("Read error")
 
             # Sleep until next update
             time.sleep(self.update_interval)
 
         self.logger.info("Update loop ended")
-    
+
     def _notify_callbacks(self, data: T):
         """Notify all registered callbacks with new data."""
         with self.callback_lock:
             for callback in self.callbacks:
                 try:
                     callback(data)
-                except Exception as e:
-                    self.logger.error(f"Callback error: {e}")
-    
+                except Exception:
+                    self.logger.exception("Callback error")
+
     def get_data(self) -> Optional[T]:
         """
         Get current sensor data.
-        
+
         Returns:
             Most recent sensor reading or None
         """
         with self.data_lock:
             return self.current_data
-    
+
     def add_callback(self, callback: Callable[[T], None]):
         """
         Register callback for sensor updates.
@@ -226,7 +232,7 @@ class BaseSensor(ABC, Generic[T]):
             if callback not in self.callbacks:
                 self.callbacks.append(callback)
                 self.logger.debug("Callback registered")
-    
+
     def remove_callback(self, callback: Callable[[T], None]):
         """
         Unregister callback.
@@ -238,34 +244,34 @@ class BaseSensor(ABC, Generic[T]):
             if callback in self.callbacks:
                 self.callbacks.remove(callback)
                 self.logger.debug("Callback removed")
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get sensor statistics."""
         stats = self.stats.copy()
-        stats['connected'] = self.connected
-        stats['running'] = self.running
-        stats['callbacks_registered'] = len(self.callbacks)
-        
+        stats["connected"] = self.connected
+        stats["running"] = self.running
+        stats["callbacks_registered"] = len(self.callbacks)
+
         # Calculate uptime
-        if stats['start_time']:
-            stats['uptime'] = time.time() - stats['start_time']
-        
+        if stats["start_time"]:
+            stats["uptime"] = time.time() - stats["start_time"]
+
         return stats
-    
+
     def _print_stats(self):
         """Print sensor statistics."""
         stats = self.get_stats()
         self.logger.info("Statistics:")
         self.logger.info(f"  Readings: {stats['readings_taken']}")
         self.logger.info(f"  Errors: {stats['read_errors']}")
-        if stats.get('uptime'):
+        if stats.get("uptime"):
             self.logger.info(f"  Uptime: {stats['uptime']:.1f}s")
-    
+
     def __enter__(self):
         """Context manager entry."""
         self.start()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.stop()

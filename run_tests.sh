@@ -22,23 +22,23 @@ case "$TEST_TYPE" in
         echo -e "${YELLOW}Running unit tests only...${NC}"
         pytest tests/unit/ -v --tb=short
         ;;
-    
+
     integration)
         echo -e "${YELLOW}Running integration tests...${NC}"
         pytest tests/integration/ -v --tb=short
         ;;
-    
+
     hardware)
         echo -e "${YELLOW}Running hardware tests...${NC}"
         echo -e "${RED}Warning: These tests require real hardware!${NC}"
         pytest tests/hardware/ -v --tb=short
         ;;
-    
+
     fast)
         echo -e "${YELLOW}Running fast tests only (unit)...${NC}"
         pytest tests/unit/ -v --tb=short -x
         ;;
-    
+
     coverage)
         echo -e "${YELLOW}Running tests with coverage...${NC}"
         pytest tests/unit/ tests/integration/ \
@@ -48,18 +48,18 @@ case "$TEST_TYPE" in
         echo ""
         echo -e "${GREEN}Coverage report generated in htmlcov/index.html${NC}"
         ;;
-    
+
     all)
         echo -e "${YELLOW}Running all tests...${NC}"
         pytest tests/unit/ tests/integration/ -v --tb=short
         ;;
-    
+
     watch)
         echo -e "${YELLOW}Running tests in watch mode...${NC}"
         echo "Tests will re-run on file changes (Ctrl+C to exit)"
         pytest-watch tests/unit/ -- -v --tb=short
         ;;
-    
+
     *)
         echo -e "${RED}Unknown test type: $TEST_TYPE${NC}"
         echo ""

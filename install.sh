@@ -76,7 +76,7 @@ GPSD_OPTIONS="-n"
 START_DAEMON="true"
 USBAUTO="true"
 GPSD_EOF
-    
+
     systemctl enable gpsd
     systemctl restart gpsd
     echo "gpsd configured and started"
