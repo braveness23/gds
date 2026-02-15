@@ -98,7 +98,10 @@ class Config:
                     'topic': 'gunshot/detections',
                     'qos': 1,
                     'username': None,
-                    'password': None
+                    'password': None,
+                    'use_tls': False,
+                    'tls_insecure': False,
+                    'tls_ca_cert': None
                 },
                 'meshtastic': {
                     'enabled': False,

@@ -33,6 +33,8 @@ class MQTTOutputNode:
                  username: Optional[str] = None,
                  password: Optional[str] = None,
                  use_tls: bool = False,
+                 tls_ca_cert: Optional[str] = None,
+                 tls_insecure: bool = False,
                  event_bus=None,
                  gps_reader=None,
                  env_sensor=None):
@@ -60,6 +62,8 @@ class MQTTOutputNode:
         self.username = username
         self.password = password
         self.use_tls = use_tls
+        self.tls_ca_cert = tls_ca_cert
+        self.tls_insecure = tls_insecure
         self.event_bus = event_bus
         self.gps_reader = gps_reader
         self.env_sensor = env_sensor
@@ -96,11 +100,33 @@ class MQTTOutputNode:
         if self.username:
             self.client.username_pw_set(self.username, self.password)
 
-        # Enable TLS if requested
+        # Enable TLS if requested. Support system CA verification, custom CA, or
+        # explicitly allow insecure (self-signed) certificates via config.
         if self.use_tls:
             import ssl
-            self.client.tls_set(cert_reqs=ssl.CERT_NONE)
-            self.client.tls_insecure_set(True)
+            try:
+                if self.tls_ca_cert:
+                    # Use provided CA bundle for verification
+                    self.logger.info(f"Using custom CA bundle at {self.tls_ca_cert}")
+                    self.client.tls_set(ca_certs=self.tls_ca_cert)
+                elif self.tls_insecure:
+                    # Accept self-signed / insecure certs
+                    self.logger.warning("TLS enabled with insecure mode: certificate verification disabled")
+                    self.client.tls_set(cert_reqs=ssl.CERT_NONE)
+                    self.client.tls_insecure_set(True)
+                else:
+                    # Default: use system CA store and require verification
+                    self.logger.info("TLS enabled with system CA verification")
+                    self.client.tls_set()
+            except Exception as e:
+                self.logger.error(f"Failed to configure TLS: {e}. Falling back to insecure mode.")
+                # Fallback: accept self-signed to avoid blocking connectivity
+                try:
+                    self.client.tls_set(cert_reqs=ssl.CERT_NONE)
+                    self.client.tls_insecure_set(True)
+                except Exception:
+                    # If even fallback fails, raise to let reconnect logic handle it
+                    raise
 
         try:
             self.logger.info(f"Connecting to {self.broker}:{self.port}...")

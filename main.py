@@ -126,6 +126,8 @@ class GunshotDetectionSystem:
                     username=mqtt_config.get('username'),
                     password=mqtt_config.get('password'),
                     use_tls=mqtt_config.get('use_tls', False),
+                    tls_ca_cert=mqtt_config.get('tls_ca_cert'),
+                    tls_insecure=mqtt_config.get('tls_insecure', False),
                     event_bus=self.event_bus,
                     gps_reader=self.gps_reader
                 )
