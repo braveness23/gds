@@ -69,3 +69,15 @@ htmlcov/
 .cache/
 *.pid
 
+# Tool outputs (generated analysis files)
+tools/*.csv
+tools/*.txt
+tools/*.png
+tools/_scan_prints.py
+tools/scan_prints_exclude_venv.py
+
+# Analysis output directories
+peaks/
+
+# Ruff cache
+.ruff_cache/
