@@ -8,8 +8,8 @@ import time
 import threading
 from dataclasses import dataclass
 from typing import Optional, Callable, List
-from core.event_bus import Event, EventType
-from sensors.base_gps import BaseGPSDevice
+from src.core.event_bus import Event, EventType
+from src.sensors.base_gps import BaseGPSDevice
 
 # Optional serial/NMEA parsing support
 try:

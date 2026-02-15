@@ -1,7 +1,7 @@
 """Unit tests for event bus."""
 
 import time
-from core.event_bus import Event, EventType, DetectionEvent
+from src.core.event_bus import Event, EventType, DetectionEvent
 
 
 def test_event_creation():

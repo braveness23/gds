@@ -6,10 +6,10 @@ This package provides:
 - GPS sensor integration
 """
 
-from sensors.base import BaseSensor
-from sensors.environmental import EnvironmentalData, BME280Sensor, DHTSensor, create_environmental_sensor
-from sensors.gps import GPSData, GPSReader, create_gps_reader
-from sensors.static_gps import StaticGPSDevice
+from src.sensors.base import BaseSensor
+from src.sensors.environmental import EnvironmentalData, BME280Sensor, DHTSensor, create_environmental_sensor
+from src.sensors.gps import GPSData, GPSReader, create_gps_reader
+from src.sensors.static_gps import StaticGPSDevice
 
 __all__ = [
     'BaseSensor',

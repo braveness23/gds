@@ -15,8 +15,8 @@ import logging
 import threading
 from dataclasses import dataclass
 from typing import Optional, Callable, List
-from core.event_bus import Event, EventType
-from sensors.base import BaseSensor
+from src.core.event_bus import Event, EventType
+from src.sensors.base import BaseSensor
 
 
 @dataclass

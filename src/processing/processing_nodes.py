@@ -6,7 +6,7 @@ This module provides nodes for filtering, conversion, and analysis of audio buff
 import numpy as np
 from scipy import signal
 from typing import Optional
-from audio.audio_nodes import AudioNode, AudioBuffer
+from src.audio.audio_nodes import AudioNode, AudioBuffer
 
 
 class MonoConversionNode(AudioNode):

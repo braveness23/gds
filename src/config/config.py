@@ -12,9 +12,13 @@ class Config:
     def __init__(self, config_path: Optional[str] = None):
         self.config_path = config_path
         self.data: Dict[str, Any] = self._default_config()
-        
+
         if config_path:
-            self.load(config_path)
+            try:
+                self.load(config_path)
+            except Exception as e:
+                print(f"[Config] Warning: Failed to load config from {config_path}: {e}")
+                print(f"[Config] Using default configuration")
     
     def _default_config(self) -> Dict[str, Any]:
         """Default configuration"""
@@ -166,13 +170,15 @@ class Config:
             }
         }
     
-    @staticmethod
-    def load(path: str):
-        """Load configuration from file and return Config instance. Raises on error."""
-        config = Config()
+    def load(self, path: str):
+        """Load configuration from file. Raises on error."""
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"Config file not found: {path}")
+
+        if path.suffix not in ['.yaml', '.yml', '.json']:
+            raise ValueError(f"Unsupported config format: {path.suffix}")
+
         try:
             with open(path, 'r') as f:
                 if path.suffix in ['.yaml', '.yml']:
@@ -181,11 +187,13 @@ class Config:
                 elif path.suffix == '.json':
                     loaded = json.load(f)
                     print(f"[DEBUG] Raw JSON loaded: {loaded}")
-                else:
-                    raise ValueError(f"Unsupported config format: {path.suffix}")
-            config.data = config._deep_merge(config.data, loaded)
+
+            self.data = self._deep_merge(self.data, loaded)
+            self.config_path = str(path)
             print(f"[Config] Loaded configuration from {path}")
-            return config
+        except (yaml.YAMLError, json.JSONDecodeError) as e:
+            print(f"[Config] Error parsing config file: {e}")
+            raise
         except Exception as e:
             print(f"[Config] Error loading config: {e}")
             raise
@@ -209,12 +217,12 @@ class Config:
             print(f"[Config] Error saving config: {e}")
     
     def _deep_merge(self, base: Dict, update: Dict) -> Dict:
-        """Deep merge dictionaries, but fully replace dicts for matching keys."""
+        """Deep merge dictionaries recursively."""
         result = base.copy()
         for key, value in update.items():
             if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-                # FULL REPLACEMENT for nested dicts (YAML wins)
-                result[key] = value
+                # Recursively merge nested dicts
+                result[key] = self._deep_merge(result[key], value)
             else:
                 result[key] = value
         return result

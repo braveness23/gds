@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 import yaml
 import json
-from config.config import Config
+from src.config.config import Config
 
 
 class TestConfig:

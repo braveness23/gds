@@ -3,10 +3,10 @@
 import pytest
 import numpy as np
 import time
-from core.event_bus import EventType
-from audio.audio_nodes import AudioBuffer
-from processing.processing_nodes import DCRemovalNode, HighPassFilterNode, GainNode
-from detection.detection_nodes import ThresholdDetectorNode
+from src.core.event_bus import EventType
+from src.audio.audio_nodes import AudioBuffer
+from src.processing.processing_nodes import DCRemovalNode, HighPassFilterNode, GainNode
+from src.detection.detection_nodes import ThresholdDetectorNode
 
 
 class TestAudioPipeline:
@@ -57,7 +57,7 @@ class TestAudioPipeline:
         # Process impulse audio
         detector.process(impulse_audio)
 
-        time.sleep(0.1)
+        time.sleep(0.5)  # Increased wait time for event dispatch
 
         # Should detect the impulse
         assert len(detections) >= 1

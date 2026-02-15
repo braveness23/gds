@@ -13,7 +13,7 @@ import logging
 import threading
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, List, Generic, TypeVar, Dict, Any
-from core.event_bus import EventType
+from src.core.event_bus import EventType
 
 
 # Generic type for sensor data

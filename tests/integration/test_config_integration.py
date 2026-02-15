@@ -3,7 +3,7 @@
 import tempfile
 from pathlib import Path
 import yaml
-from config.config import Config
+from src.config.config import Config
 
 
 class TestConfigurationIntegration:

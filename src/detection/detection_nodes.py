@@ -6,8 +6,8 @@ This module provides various detection algorithms for gunshot/onset detection.
 import numpy as np
 import logging
 from typing import Optional, Dict
-from audio.audio_nodes import AudioNode, AudioBuffer
-from core.event_bus import Event, EventType
+from src.audio.audio_nodes import AudioNode, AudioBuffer
+from src.core.event_bus import Event, EventType
 
 # Attempt to import aubio once at module import time. If unavailable, set
 # module-level reference to None so nodes can skip detection without

@@ -1,8 +1,8 @@
 import time
-from sensors.gps import GPSData
-from sensors.base_gps import BaseGPSDevice
-from sensors.static_gps import StaticGPSDevice
-from sensors.mock_gps import MockGPSDevice
+from src.sensors.gps import GPSData
+from src.sensors.base_gps import BaseGPSDevice
+from src.sensors.static_gps import StaticGPSDevice
+from src.sensors.mock_gps import MockGPSDevice
 
 class DummyGPSDevice(BaseGPSDevice[GPSData]):
     def _connect(self):
