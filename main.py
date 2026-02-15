@@ -19,15 +19,14 @@ import signal
 import threading
 import logging
 from src.core.logging_utils import setup_logging
-from src.config.config import load_config
-from src.core.event_bus import EventBus
+from src.config.config import Config
+from src.core.event_bus import EventBus, EventType
 from src.audio.audio_nodes import ALSASourceNode
 from src.detection.detection_nodes import AubioOnsetNode, ThresholdDetectorNode
-from src.sensors.gps import GPSDevice
+from src.sensors.gps import GPSReader, create_gps_reader
 from src.sensors.static_gps import StaticGPSDevice
-from src.sensors.environmental import EnvironmentalSensor
+from src.sensors.environmental import BME280Sensor, DHTSensor, create_environmental_sensor
 from src.output.mqtt_output import MQTTOutputNode
-from src.sensors.gps import create_gps_reader
 
 
 class GunshotDetectionSystem:
@@ -80,9 +79,12 @@ class GunshotDetectionSystem:
         try:
             print(f"\n[System] Initializing components...")
 
-            # 1. Load configuration
-            self.config = load_config(self.config_path)
-            print(f"  ✓ Configuration loaded")
+            # 1. Load configuration (if not already loaded by command-line args)
+            if not self.config:
+                self.config = Config(self.config_path)
+                print(f"  ✓ Configuration loaded")
+            else:
+                print(f"  ✓ Using pre-configured settings")
 
             # 2. Initialize event bus
             self.event_bus = EventBus()
@@ -90,8 +92,8 @@ class GunshotDetectionSystem:
             print(f"  ✓ Event bus started")
 
             # Subscribe to events for local monitoring
-            self.event_bus.subscribe('DETECTION', self._on_detection_event)
-            self.event_bus.subscribe('SYSTEM', self._on_system_event)
+            self.event_bus.subscribe(EventType.DETECTION, self._on_detection_event)
+            self.event_bus.subscribe(EventType.SYSTEM, self._on_system_event)
 
             # 3. Initialize GPS reader if enabled
             gps_config = self.config.get('sensors.gps', {})
