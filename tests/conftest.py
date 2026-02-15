@@ -8,7 +8,7 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from core.event_bus import EventBus, Event, EventType
+from core.event_bus import EventBus
 from config.config import Config
 from audio.audio_nodes import AudioBuffer
 

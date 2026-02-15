@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 import time
-from core.event_bus import EventBus, EventType
+from core.event_bus import EventType
 from audio.audio_nodes import AudioBuffer
 from processing.processing_nodes import DCRemovalNode, HighPassFilterNode, GainNode
 from detection.detection_nodes import ThresholdDetectorNode

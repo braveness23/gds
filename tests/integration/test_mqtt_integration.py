@@ -3,8 +3,8 @@
 import pytest
 import time
 import json
-from unittest.mock import Mock, MagicMock, patch, call
-from core.event_bus import EventBus, Event, EventType, DetectionEvent
+from unittest.mock import Mock, MagicMock, patch
+from core.event_bus import Event, EventType, DetectionEvent
 from output.mqtt_output import MQTTOutputNode
 
 

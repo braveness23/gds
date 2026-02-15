@@ -130,7 +130,7 @@ class TestBaseSensorLifecycle:
         sensor = MockSensor(update_interval=0.1)
         
         sensor.start()
-        read_count_before = sensor.read_count
+        # read_count_before = sensor.read_count
         
         # Try to start again
         sensor.start()

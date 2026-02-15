@@ -2,8 +2,7 @@
 
 import pytest
 import time
-import json
-from core.event_bus import EventBus, Event, EventType, DetectionEvent
+from core.event_bus import Event, EventType, DetectionEvent
 from output.mqtt_output import MQTTOutputNode
 from config.config import Config
 
@@ -11,8 +10,10 @@ from config.config import Config
 @pytest.fixture
 def mqtt_config():
     """Load MQTT config from config.yaml."""
-    config = Config('/workspaces/GDS/config.yaml')
-    return config.get('output.mqtt')
+    config = Config('config.yaml')
+    mqtt_conf = config.get('output.mqtt')
+    print(f"[DEBUG] mqtt_config loaded: {mqtt_conf}")
+    return mqtt_conf
 
 
 @pytest.fixture

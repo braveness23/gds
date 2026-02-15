@@ -1,11 +1,9 @@
 """Integration tests for configuration and system initialization."""
 
-import pytest
 import tempfile
 from pathlib import Path
 import yaml
 from config.config import Config
-from core.event_bus import EventBus
 
 
 class TestConfigurationIntegration:
