@@ -57,81 +57,23 @@ tests/
 │   ├── test_mqtt_integration.py
 │   └── test_detection_flow.py
 ├── hardware/                   # Hardware tests (manual)
-│   ├── test_gps_reader.py
-│   ├── test_i2s_audio.py
-│   └── test_sensors.py
-└── mocks/                      # Mock implementations
-    ├── mock_audio.py
-    ├── mock_gps.py
-    ├── mock_sensors.py
-    └── mock_mqtt.py
-```
 
-## Test Categories
-
-### 1. Unit Tests (Fast, No I/O)
-
-Run on every commit. Should complete in <5 seconds.
-
-**What to test:**
-- Pure functions (filters, conversions)
-- Data structures (AudioBuffer, Event)
-- Configuration parsing
-- Business logic (detection algorithms with known data)
-
-**What to mock:**
-- All I/O (files, network, hardware)
-- Time (for timing tests)
-- Random values (for deterministic tests)
-
-### 2. Integration Tests (Medium, Mocked I/O)
-
-Run before merging. Should complete in <30 seconds.
-
-**What to test:**
-- Event bus with multiple subscribers
-- Audio pipeline (source → processing → detection)
-- MQTT publish/subscribe
-- Configuration updates
-
-**What to mock:**
-- Hardware (GPS, sensors)
-- Network (MQTT broker)
-- Keep: Event bus, processing logic
-
-### 3. Hardware Tests (Slow, Real Hardware)
-
-Run manually or in CI with hardware attached.
-
-**What to test:**
-- GPS provides valid data
-- I2S audio captures sound
-- Sensors return reasonable values
-- PPS timing works
-
-**No mocking** - These validate hardware integration
-
-### 4. System Tests (End-to-End)
-
-Full system with recorded data.
-
-**What to test:**
-- Load recording → Process → Verify detections
-- Simulate fleet (multiple instances)
-- Configuration changes propagate
-- Monitoring data collected
-
----
-
-## Test Fixtures (conftest.py)
+### Mock GPS
 
 ```python
-# tests/conftest.py
-"""Shared pytest fixtures for all tests."""
+from sensors.mock_gps import MockGPSDevice
 
-import pytest
+# Create a mock GPS device (static)
 import numpy as np
+position = gps._read_sensor()
+print(position)
+
+# Create a mock GPS device (simulated movement)
 from pathlib import Path
+for _ in range(3):
+    position = gps._read_sensor()
+    print(f"Moved to: {position.latitude}, {position.longitude}")
+```
 from src.core.event_bus import EventBus, Event, EventType
 from src.config.config import Config
 from src.audio.audio_nodes import AudioBuffer

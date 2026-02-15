@@ -382,19 +382,31 @@ gps.add_callback(on_position_update)
 gps.start()
 ```
 
+
 ### Static Location (Fallback)
 
 ```python
-from sensors.gps import StaticLocationProvider
+from sensors.static_gps import StaticGPSDevice
 
 # For testing or fixed installations
-gps = StaticLocationProvider(
-    latitude=37.7749,
-    longitude=-122.4194,
-    altitude=10.0
+gps = StaticGPSDevice(
+   latitude=37.7749,
+   longitude=-122.4194,
+   altitude=10.0
 )
 
-position = gps.get_position()
+position = gps._read_sensor()
+```
+
+### Mock GPS (Testing)
+
+```python
+from sensors.mock_gps import MockGPSDevice
+
+# For unit tests or simulation
+gps = MockGPSDevice(latitude=37.0, longitude=-122.0, altitude=10.0, move=True)
+position = gps._read_sensor()
+print(position)
 ```
 
 ### Factory Function (Recommended)

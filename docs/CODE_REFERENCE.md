@@ -151,23 +151,40 @@ gunshot/config/<node_id>/*   - Remote configuration
 
 ## Sensors
 
-### File: `src/sensors/sensors.py`
+but both are supported for flexibility.
+
+### File: `src/sensors/`
 
 **Key Classes:**
 
-1. **GPSReader**
+1. **BaseGPSDevice**
+   - Abstract base for all GPS devices (shared logic, interface)
+
+2. **GPSReader**
    - Connects to gpsd for GPS data
    - Returns GPSData: lat, lon, alt, timestamp, fix_quality, satellites, hdop
    - Automatic PPS offset handling
    - Callbacks for position updates
 
-2. **BME280Sensor**
+3. **SerialGPSReader**
+   - Reads NMEA sentences from serial GPS modules
+   - Uses pyserial and pynmea2
+   - Returns GPSData
+
+4. **StaticGPSDevice**
+   - Provides a fixed/static GPS position (for testing or surveyed nodes)
+
+5. **MockGPSDevice**
+   - Simulates GPS data for unit testing
+   - Can simulate movement or static positions
+
+6. **BME280Sensor**
    - I2C temperature, humidity, pressure sensor
    - Uses Adafruit CircuitPython library
    - Periodic reading thread
    - Returns EnvironmentData
 
-3. **DHTSensor**
+7. **DHTSensor**
    - GPIO temperature and humidity sensor
    - Supports DHT22 and DHT11
    - Cheaper alternative to BME280
