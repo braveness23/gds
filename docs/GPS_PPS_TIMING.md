@@ -69,7 +69,7 @@ sudo ppstest /dev/pps0
 ### Expected chronyc output
 
 ```
-MS Name/IP address         Stratum Poll Reach LastRx Last sample               
+MS Name/IP address         Stratum Poll Reach LastRx Last sample
 ===============================================================================
 #* PPS0                           0   4   377     6    +12ns[  +32ns] +/-   94ns
 ^- 192.168.1.1                    2   6   377    23  +1.2ms[+1.3ms] +/-   45ms
@@ -93,7 +93,7 @@ class ALSASourceNode:
     def _audio_callback(self, in_data, frame_count, time_info, status):
         # System clock is already PPS-synchronized!
         timestamp = time.time()
-        
+
         # Process audio...
         buffer = AudioBuffer(
             samples=samples,
@@ -102,7 +102,7 @@ class ALSASourceNode:
             channels=self.channels,
             buffer_index=self.buffer_index
         )
-        
+
         self.emit(buffer)
 ```
 
@@ -145,15 +145,15 @@ def read_pps_event():
     """Read PPS event directly from kernel (advanced use only)."""
     # This is ONLY needed if you're writing your own time sync
     # or need to timestamp at the exact PPS edge
-    
+
     with open('/dev/pps0', 'rb') as pps:
         # PPS_FETCH ioctl to get event
         import fcntl
         PPS_FETCH = 0xc0187001
-        
+
         # This blocks until next PPS pulse
         buf = fcntl.ioctl(pps.fileno(), PPS_FETCH, b'\0' * 24)
-        
+
         # Parse pps_info_t struct
         sec, nsec = struct.unpack('ll', buf[:16])
         return sec + nsec / 1e9
@@ -188,19 +188,19 @@ That's **34 microns** - about the width of a human hair!
 1. **Audio buffer timing** (~1-10ms = 0.34-3.4 meters)
    - When exactly did sound hit microphone vs when buffer was read?
    - This is your dominant error source
-   
+
 2. **Network latency** (1-100ms = 0.34-34 meters)
    - MQTT message delivery time
    - Only matters if you timestamp AFTER network transmission
-   
+
 3. **Temperature/humidity** (~0.6% = 2 meters per 100m)
    - Speed of sound varies with conditions
    - 343 m/s at 20°C, 331 m/s at 0°C
-   
+
 4. **Microphone position error** (cm to meters)
    - GPS position accuracy: ~2-5 meters typical
    - Microphone offset from GPS antenna
-   
+
 5. **PPS timing** (<1 microsecond = 0.3mm)
    - This is negligible!
 
@@ -221,27 +221,27 @@ import time
 class SystemClock:
     """
     Use system clock (already PPS-synchronized by chrony/ntpd).
-    
+
     This is simpler and better than reading /dev/pps0 directly,
     because the kernel's time discipline algorithm is much more
     sophisticated than anything we'd write ourselves.
     """
-    
+
     def __init__(self, event_bus=None):
         self.event_bus = event_bus
-    
+
     def get_time(self) -> float:
         """Get current time (already GPS-synchronized)."""
         return time.time()
-    
+
     def get_time_ns(self) -> int:
         """Get current time in nanoseconds."""
         return time.time_ns()
-    
+
     def get_monotonic(self) -> float:
         """Get monotonic time (for intervals)."""
         return time.monotonic()
-    
+
     def verify_sync(self) -> dict:
         """Verify system clock is synchronized."""
         try:
@@ -253,13 +253,13 @@ class SystemClock:
                 text=True,
                 timeout=2
             )
-            
+
             if result.returncode == 0:
                 output = result.stdout
-                
+
                 # Parse output for sync status
                 synced = 'Leap status     : Normal' in output
-                
+
                 # Extract system time offset
                 for line in output.split('\n'):
                     if 'System time' in line:
@@ -268,16 +268,16 @@ class SystemClock:
                         if len(parts) > 1:
                             offset_str = parts[1].strip().split()[0]
                             offset = float(offset_str)
-                            
+
                             return {
                                 'synced': synced,
                                 'offset_seconds': offset,
                                 'offset_ms': offset * 1000,
                                 'source': 'chrony'
                             }
-                
+
                 return {'synced': synced, 'source': 'chrony'}
-            
+
         except Exception as e:
             # Chrony not available, try ntpd
             try:
@@ -287,15 +287,15 @@ class SystemClock:
                     text=True,
                     timeout=2
                 )
-                
+
                 if result.returncode == 0:
                     # Look for * (primary source)
                     synced = '*' in result.stdout
                     return {'synced': synced, 'source': 'ntpd'}
-                    
+
             except Exception:
                 pass
-        
+
         # Can't verify sync status
         return {
             'synced': None,
@@ -309,7 +309,7 @@ class NTPClock:
     Uses network time instead of local GPS.
     Accuracy: ~10-50ms (much worse than PPS but better than nothing).
     """
-    
+
     def __init__(self, ntp_server='pool.ntp.org', event_bus=None):
         import ntplib
         self.client = ntplib.NTPClient()
@@ -317,14 +317,14 @@ class NTPClock:
         self.event_bus = event_bus
         self.offset = 0.0
         self.last_sync = 0.0
-    
+
     def sync(self):
         """Sync with NTP server."""
         try:
             response = self.client.request(self.ntp_server, version=3, timeout=2)
             self.offset = response.offset
             self.last_sync = time.time()
-            
+
             if self.event_bus:
                 from core.event_bus import Event, EventType
                 self.event_bus.publish(Event(
@@ -337,12 +337,12 @@ class NTPClock:
                         'stratum': response.stratum
                     }
                 ))
-            
+
             return True
         except Exception as e:
             print(f"[NTPClock] Sync failed: {e}")
             return False
-    
+
     def get_time(self) -> float:
         """Get NTP-corrected time."""
         return time.time() + self.offset
@@ -357,7 +357,7 @@ class ALSASourceNode(AudioSourceNode):
     def __init__(self, ..., clock=None):
         super().__init__(...)
         self.clock = clock  # Optional: SystemClock or NTPClock
-    
+
     def _audio_callback(self, in_data, frame_count, time_info, status):
         # Get timestamp
         if self.clock:
@@ -365,7 +365,7 @@ class ALSASourceNode(AudioSourceNode):
         else:
             # Just use system time directly
             timestamp = time.time()
-        
+
         # Rest of callback...
 ```
 
@@ -377,11 +377,11 @@ class ALSASourceNode(AudioSourceNode):
 timing:
   # Use system clock (PPS-disciplined)
   use_system_clock: true
-  
+
   # Optional: Verify sync and alert if not synced
   verify_sync: true
   verify_interval: 60  # seconds
-  
+
   # Fallback to NTP if PPS fails
   ntp_fallback:
     enabled: true
@@ -418,19 +418,19 @@ import numpy as np
 def test_timestamp_precision():
     """Measure timestamp precision."""
     timestamps = []
-    
+
     # Capture 1000 timestamps as fast as possible
     for _ in range(1000):
         timestamps.append(time.time())
-    
+
     # Calculate intervals
     intervals = np.diff(timestamps)
-    
+
     print(f"Min interval: {intervals.min() * 1e6:.3f} μs")
     print(f"Max interval: {intervals.max() * 1e6:.3f} μs")
     print(f"Mean interval: {intervals.mean() * 1e6:.3f} μs")
     print(f"Std dev: {intervals.std() * 1e6:.3f} μs")
-    
+
     # On PPS-synced system, you should see:
     # - Min: ~0.1 μs (clock resolution)
     # - Jitter: ~1-10 μs (scheduling)
@@ -450,20 +450,20 @@ def compare_clocks(other_node_ip):
     """Compare clock with another node."""
     # Send timestamp
     local_time = time.time()
-    
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(str(local_time).encode(), (other_node_ip, 9999))
-    
+
     # Get response
     sock.settimeout(1.0)
     data, addr = sock.recvfrom(1024)
     remote_time = float(data.decode())
-    
+
     # Calculate offset
     offset = remote_time - local_time
-    
+
     print(f"Clock offset from {other_node_ip}: {offset * 1e6:.1f} μs")
-    
+
     # For PPS-synced nodes, should be <10 μs
 ```
 

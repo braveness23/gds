@@ -30,8 +30,8 @@ A production-ready gunshot detection system for Raspberry Pi fleets with:
 **Answer:** Algorithmic latency doesn't matter if you timestamp at capture.
 
 **Key Insight:**
-Since you're capturing timestamp at the moment audio arrives (PPS-synced), 
-processing latency is irrelevant for position accuracy. Only matters for 
+Since you're capturing timestamp at the moment audio arrives (PPS-synced),
+processing latency is irrelevant for position accuracy. Only matters for
 real-time alerting.
 
 **Decision:** Timestamp early, process later.
@@ -56,7 +56,7 @@ real-time alerting.
 5. System health monitoring
 6. Fleet deployment automation
 
-**Why:** You mentioned wanting MQTT, then Meshtastic, then LoRa, monitoring, 
+**Why:** You mentioned wanting MQTT, then Meshtastic, then LoRa, monitoring,
 and remote config. Each addition fit naturally into the event bus architecture.
 
 ### 5. Packaging Request
@@ -285,35 +285,35 @@ done
    - processing_nodes.py
    - detection_nodes.py
    - main.py
-   
+
    Start with: "Help me implement audio_nodes.py following the design in CODE_REFERENCE.md"
 
 2. **Test Locally** (1 hour)
    - Use FileSourceNode
    - Verify pipeline works
    - Test event bus
-   
+
    Ask: "Help me write a test script for the audio pipeline"
 
 3. **Add Hardware Support** (1-2 hours)
    - GPS integration
    - Sensors
    - MQTT output
-   
+
    Ask: "Help me integrate GPS following the sensors.py design"
 
 4. **Deploy to Pi** (1 hour)
    - Test on real hardware
    - Tune configuration
    - Verify timing
-   
+
    Ask: "Help me debug why GPS isn't providing PPS pulses"
 
 5. **Fleet Deployment** (2-3 hours)
    - Deploy to multiple Pis
    - Configure MQTT broker
    - Test coordination
-   
+
    Ask: "Help me set up MQTT broker for fleet coordination"
 
 ## Files to Reference
@@ -333,7 +333,7 @@ Instead of:
 ❌ "How do I make a gunshot detector?"
 
 Try:
-✅ "Following the architecture in CODE_REFERENCE.md, I'm implementing the 
+✅ "Following the architecture in CODE_REFERENCE.md, I'm implementing the
    AubioOnsetNode. It should subscribe to AudioBuffers, process them with
    aubio's onset detection, and publish DetectionEvents. Can you help
    implement the process() method?"
@@ -346,12 +346,12 @@ This gives Claude Code:
 
 ## Remember
 
-Claude Code won't have our conversation history, but with these reference 
+Claude Code won't have our conversation history, but with these reference
 documents, it will have:
 - All the design decisions (CODE_REFERENCE.md)
 - Architecture principles (this file)
 - Code to implement (our conversation)
 - Deployment process (DEPLOYMENT.md)
 
-This is actually better than raw conversation history because it's 
+This is actually better than raw conversation history because it's
 organized, searchable, and focused on what matters for implementation.

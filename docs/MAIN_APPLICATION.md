@@ -439,7 +439,7 @@ detection:
   aubio:
     enabled: true
     threshold: 0.3
-  
+
   threshold:
     enabled: true
     threshold_db: -15.0
@@ -493,7 +493,7 @@ done
 ```yaml
 audio:
   buffer_size: 512  # Smaller buffer = lower latency
-  
+
 detection:
   aubio:
     hop_size: 256   # Process more frequently
@@ -520,7 +520,7 @@ detection:
 audio:
   sample_rate: 48000
   buffer_size: 1024
-  
+
 detection:
   aubio:
     hop_size: 512

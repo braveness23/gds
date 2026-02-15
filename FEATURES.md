@@ -56,30 +56,26 @@
   - Design complete, needs code from conversation
   - PPS offset support designed
   - Thread-safe callback architecture
-  
-- 🚧 I2SDirectSourceNode - Direct I2S device reading
-  - Design complete for maximum timing control
-  - PPS clock integration designed
-  
+
 - 🚧 FileSourceNode - Audio file playback for testing
   - Design complete with realtime simulation option
 
 ### Signal Processing
 - 🚧 MonoConversionNode - Stereo to mono conversion
   - Design complete, simple averaging
-  
+
 - 🚧 HighPassFilterNode - Remove low-frequency noise
   - Design complete with scipy SOS filters
   - Configurable cutoff (default 5kHz for gunshots)
   - State management for continuous processing
   - Butterworth and Chebyshev filter support
-  
+
 - 🚧 GainNode - Apply gain/attenuation
   - Design complete with dB to linear conversion
-  
+
 - 🚧 BufferSplitterNode - Parallel processing support
   - Design complete for running multiple detectors
-  
+
 - 🚧 RMSCalculatorNode - Level monitoring
   - Design complete for audio analysis
 
@@ -90,13 +86,7 @@
   - Configurable hop size for latency tuning
   - Silence threshold support
   - Event bus integration designed
-  
-- 🚧 MLGunShotDetectorNode - Machine learning classifier
-  - Stub implementation ready
-  - PyTorch/TensorFlow support framework
-  - Sliding window processing designed
-  - Confidence thresholding
-  
+
 - 🚧 ThresholdDetectorNode - Simple amplitude detection
   - Design complete for fast fallback
   - Minimum duration filtering
@@ -108,34 +98,21 @@
   - Event bus integration designed
   - Automatic location/sensor data inclusion
   - Topic structure defined
-  
-- 🚧 MeshtasticOutputNode - Mesh network communication
-  - Design complete with serial/TCP support
-  - Compact message format for bandwidth limits
-  - Periodic position/telemetry updates designed
-  
-- 🚧 LoRaOutputNode - LoRa radio support
-  - Stub implementation ready
-  - Configurable frequency/bandwidth/SF
-  
+
 - 🚧 FileLoggerNode - Local JSONL logging
   - Design complete
-  
-- 🚧 BufferSaverNode - Save audio around detections
-  - Design complete with pre/post trigger buffers
-  - For forensic analysis
 
 ### Sensors & Positioning
 - 🚧 GPSReader - GPS position via gpsd
   - Design complete with callback support
   - Returns lat/lon/alt with fix quality
   - PPS offset handling designed
-  
+
 - 🚧 BME280Sensor - Temperature/humidity/pressure
   - Design complete for I2C sensor
   - Periodic reading in thread
   - Adafruit CircuitPython library integration
-  
+
 - 🚧 DHTSensor - DHT22/DHT11 support
   - Design complete for cheaper alternative
   - GPIO-based reading
@@ -146,7 +123,7 @@
   - Design complete with periodic sync
   - Offset calculation and application
   - ~10ms accuracy for basic sync
-  
+
 - 🚧 PPSClock - GPS pulse-per-second timing
   - Design complete for microsecond precision
   - PPS device reading
@@ -162,13 +139,13 @@
   - Network traffic monitoring
   - Battery status (if available)
   - Alert thresholds with cooldown
-  
+
 - 🚧 AudioBufferMonitor - Pipeline health
   - Design complete
   - Buffer drop rate tracking
   - Timing jitter measurement
   - Performance statistics
-  
+
 - 🚧 DetectionMonitor - Detection statistics
   - Design complete
   - Per-detector counts and confidence
@@ -181,15 +158,15 @@
   - Confirmation workflow
   - Callback system for live updates
   - Auto-save support
-  
+
 - 🚧 MQTTConfigBridge - MQTT-based config
   - Design complete with topic structure
   - Broadcast and per-node updates
   - Get/set/confirm/reject operations
-  
+
 - 🚧 MeshtasticConfigBridge - Mesh network config
   - Design complete with compact protocol
-  
+
 - 🚧 ConfigWebAPI - HTTP REST API
   - Design complete with simple endpoints
   - GET/POST for config operations

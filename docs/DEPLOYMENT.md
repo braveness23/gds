@@ -243,13 +243,13 @@ detections = defaultdict(list)
 
 def on_message(client, userdata, msg):
     event = json.loads(msg.payload)
-    
+
     # Collect detections from multiple nodes
     detections[event['timestamp']].append(event)
-    
+
     # If we have 3+ nodes with same timestamp (within window)
     # Calculate position...
-    
+
 mqtt_client = mqtt.Client()
 mqtt_client.on_message = on_message
 mqtt_client.connect("localhost", 1883)

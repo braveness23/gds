@@ -7,7 +7,7 @@ Environmental sensors provide:
 1. **Speed of sound correction** (critical for trilateration)
    - Temperature affects sound speed by ~0.6 m/s per °C
    - 20°C error = 12 m/s speed error = significant position error
-   
+
 2. **Environmental monitoring**
    - Track weather conditions
    - Correlate detections with weather
@@ -132,13 +132,13 @@ i2cdetect -y 1
 **Expected output:**
 ```
      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
-00:          -- -- -- -- -- -- -- -- -- -- -- -- -- 
-10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-40: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
-60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+00:          -- -- -- -- -- -- -- -- -- -- -- -- --
+10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+40: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 70: -- -- -- -- -- -- 76 --
 ```
 
@@ -232,7 +232,7 @@ if data:
     print(f"Temperature: {data.temperature}°C")
     print(f"Humidity: {data.humidity}%")
     print(f"Pressure: {data.pressure} hPa")
-    
+
     # Calculate speed of sound
     speed = data.calculate_speed_of_sound()
     print(f"Speed of sound: {speed} m/s")
@@ -248,9 +248,9 @@ def on_environmental_update(data):
     temp = data.temperature
     humidity = data.humidity
     speed = data.calculate_speed_of_sound()
-    
+
     print(f"Temp: {temp:.1f}°C, Humidity: {humidity:.1f}%, SoS: {speed:.1f} m/s")
-    
+
     # Update trilateration server with new speed of sound
     # trilateration.update_speed_of_sound(speed)
 
@@ -463,17 +463,17 @@ sensor = DHTSensor(update_interval=10.0)  # Not less than 2.0
 1. **Self-heating:**
    - Raspberry Pi generates heat
    - Sensor near Pi reads higher
-   
+
    **Solution:** Mount sensor away from Pi (use cable)
 
 2. **Sunlight:**
    - Direct sunlight heats sensor
-   
+
    **Solution:** Shade sensor or mount in enclosure
 
 3. **Enclosure heat:**
    - Plastic enclosures trap heat
-   
+
    **Solution:** Ventilate enclosure
 
 ### Issue: Humidity readings unstable
@@ -597,10 +597,10 @@ def on_environmental_message(msg):
     data = json.loads(msg.payload)
     temp = data['environment']['temperature']
     humidity = data['environment']['humidity']
-    
+
     # Calculate speed of sound
     speed = calculate_speed_of_sound(temp, humidity)
-    
+
     # Update engine
     engine.update_speed_of_sound(speed)
 ```

@@ -36,8 +36,8 @@ Copy these implementations into the corresponding files in the project.
 - Buffer metadata includes sample_rate, channels, timestamp, buffer_index
 
 **Key Design Decision:**
-We chose to timestamp at the earliest possible moment (in the audio callback) 
-rather than later in processing, because trilateration accuracy depends on 
+We chose to timestamp at the earliest possible moment (in the audio callback)
+rather than later in processing, because trilateration accuracy depends on
 knowing exactly when the sound arrived at the microphone.
 
 **Status:** Code provided in conversation, needs to be copied to file
@@ -78,12 +78,12 @@ and this removes environmental noise (wind, traffic, voices) below that frequenc
   - Methods: complex, energy, hfc, mkl, phase, specdiff, specflux, kl, wphase
   - Default: 'complex' (best for transient detection)
   - Configurable hop_size (smaller = lower latency, higher CPU)
-  
+
 - `MLGunShotDetectorNode` - Machine learning based classifier
   - Stub implementation ready for PyTorch/TensorFlow models
   - Sliding window processing
   - Confidence thresholding
-  
+
 - `ThresholdDetectorNode` - Simple amplitude threshold detector
   - Fast, low-complexity fallback
   - Minimum duration filtering
@@ -473,14 +473,14 @@ You asked about using aubio for detecting non-musical onsets (gunshots).
 When you start working in VS Code with Claude Code, you can reference this document
 and say things like:
 
-"I'm implementing the AudioSourceNode class. The design from our conversation 
-specified that timestamps should be captured in the audio callback. Can you help 
+"I'm implementing the AudioSourceNode class. The design from our conversation
+specified that timestamps should be captured in the audio callback. Can you help
 me implement the _audio_callback method with proper PPS offset handling?"
 
 Or:
 
 "Looking at the HighPassFilterNode design, we decided to use second-order sections
-for stability. Can you implement the scipy.signal.sosfilt approach with state 
+for stability. Can you implement the scipy.signal.sosfilt approach with state
 management across buffers?"
 
 The key is to reference specific design decisions from this document so Claude Code

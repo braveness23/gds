@@ -199,7 +199,7 @@ Window needed: ~0.5s (with margin)
 
 **Thunder (distant):**
 ```
-Sensor spacing: 1000m  
+Sensor spacing: 1000m
 Lightning 5km away
 Max time difference: (5000m + 1000m) / 343m/s = 17.5s
 Window needed: ~30s (with margin)
@@ -228,15 +228,15 @@ sorted_detections = sorted(buffer, key=lambda d: d.timestamp)
 # Find groups within time window
 for detection in sorted_detections:
     group = [detection]
-    
+
     # Find all detections within window
     for other in sorted_detections:
         time_diff = abs(other.timestamp - detection.timestamp)
-        
+
         if time_diff <= time_window:
             if other.node_id not in group.node_ids:
                 group.append(other)
-    
+
     # Process group if enough nodes
     if len(group) >= min_nodes:
         trilaterate(group)
@@ -340,7 +340,7 @@ Lightning strikes at: (37.7755, -122.4185, 500m)  [~700m away]
 ```
 Sound travel time to each node:
 Node 1: 700m / 343m/s = 2.041s
-Node 2: 670m / 343m/s = 1.953s  
+Node 2: 670m / 343m/s = 1.953s
 Node 3: 680m / 343m/s = 1.982s
 
 If thunder occurred at T=0:

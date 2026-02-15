@@ -43,7 +43,7 @@ The following modules were designed in our conversation but need to be copied fr
 
 1. **Audio Nodes** → `src/audio/audio_nodes.py`
    - ALSASourceNode
-   - I2SDirectSourceNode  
+   - I2SDirectSourceNode
    - FileSourceNode
    - AudioBuffer dataclass
    - AudioNode base class

@@ -360,7 +360,7 @@ gps.start()
 # Wait for fix
 if gps.wait_for_fix(timeout=60):
     print("GPS ready!")
-    
+
     # Get current position
     position = gps.get_position()
     print(f"Location: ({position.latitude}, {position.longitude})")

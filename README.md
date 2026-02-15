@@ -5,7 +5,7 @@ A distributed acoustic gunshot detection and trilateration system designed for R
 ## Features
 
 - **High-Precision Timing**: GPS PPS and NTP synchronization for microsecond-level timestamp accuracy
-- **Multiple Detection Methods**: 
+- **Multiple Detection Methods**:
   - Aubio onset detection (fast, low-latency)
   - ML-based classification (high accuracy)
   - Simple threshold detection (fallback)
