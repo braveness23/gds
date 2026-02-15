@@ -1,5 +1,6 @@
 """Event bus for pub/sub messaging across the system."""
 
+
 from dataclasses import dataclass, field
 from typing import Callable, List, Dict, Any, Optional
 from enum import Enum
@@ -7,6 +8,7 @@ import threading
 import queue
 import time
 from datetime import datetime
+import logging
 
 
 class EventType(Enum):
@@ -84,7 +86,7 @@ class EventBus:
             'events_dropped': 0
         }
         self.lock = threading.Lock()
-    
+        self.logger = logging.getLogger(self.__class__.__name__)
     def subscribe(self, event_type: Optional[EventType], callback: Callable[[Event], None]):
         """Subscribe to specific event type or all events"""
         with self.lock:
@@ -110,7 +112,7 @@ class EventBus:
             self.stats['events_published'] += 1
         except queue.Full:
             self.stats['events_dropped'] += 1
-            print(f"[{self.name}] Warning: Event queue full, dropping event")
+            self.logger.warning(f"[{self.name}] Warning: Event queue full, dropping event")
     
     def start(self):
         """Start event dispatch thread"""
@@ -121,14 +123,14 @@ class EventBus:
         self.dispatch_thread = threading.Thread(target=self._dispatch_loop)
         self.dispatch_thread.daemon = True
         self.dispatch_thread.start()
-        print(f"[{self.name}] Started event bus")
+        self.logger.info(f"[{self.name}] Started event bus")
     
     def stop(self):
         """Stop event dispatch thread"""
         self.running = False
         if self.dispatch_thread:
             self.dispatch_thread.join(timeout=2.0)
-        print(f"[{self.name}] Stopped event bus")
+        self.logger.info(f"[{self.name}] Stopped event bus")
     
     def _dispatch_loop(self):
         """Main dispatch loop running in thread"""
@@ -148,14 +150,14 @@ class EventBus:
                 try:
                     callback(event)
                 except Exception as e:
-                    print(f"[{self.name}] Error in subscriber callback: {e}")
+                    self.logger.error(f"[{self.name}] Error in subscriber callback: {e}")
             
             # Send to all-events subscribers
             for callback in self.all_subscribers:
                 try:
                     callback(event)
                 except Exception as e:
-                    print(f"[{self.name}] Error in all-events callback: {e}")
+                    self.logger.error(f"[{self.name}] Error in all-events callback: {e}")
     
     def get_stats(self) -> Dict:
         """Get event bus statistics"""

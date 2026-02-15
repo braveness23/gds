@@ -1,0 +1,13 @@
+import logging
+import sys
+
+def setup_logging(level=logging.INFO):
+    """Configure root logger with standard format and all levels."""
+    logging.basicConfig(
+        level=level,
+        format='[%(asctime)s] %(levelname)s %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stdout
+    )
+
+# Usage: import and call setup_logging() at the start of your main entry point.

@@ -9,7 +9,15 @@ import threading
 from dataclasses import dataclass
 from typing import Optional, Callable, List
 from core.event_bus import Event, EventType
-from sensors.base import BaseSensor
+from sensors.base_gps import BaseGPSDevice
+
+# Optional serial/NMEA parsing support
+try:
+    import serial
+    import pynmea2
+except Exception:
+    serial = None  # type: ignore
+    pynmea2 = None  # type: ignore
 
 
 @dataclass
@@ -60,7 +68,7 @@ class GPSData:
         }
 
 
-class GPSReader(BaseSensor[GPSData]):
+class GPSReader(BaseGPSDevice[GPSData]):
     """
     GPS reader using gpsd daemon.
     
@@ -347,6 +355,88 @@ class StaticLocationProvider:
         }
 
 
+class SerialGPSReader(BaseGPSDevice[GPSData]):
+        def _connect(self):
+            if serial is None or pynmea2 is None:
+                raise ImportError("pyserial and pynmea2 are required for SerialGPSReader")
+            try:
+                self.serial = serial.Serial(self.device, self.baudrate, timeout=1)
+            except Exception as e:
+                print(f"[SerialGPSReader] Failed to open serial device {self.device}: {e}")
+                raise
+
+        def _disconnect(self):
+            try:
+                if hasattr(self, 'serial') and self.serial and getattr(self.serial, 'is_open', True):
+                    self.serial.close()
+            except Exception as e:
+                print(f"[SerialGPSReader] Error closing serial device: {e}")
+
+        def _read_sensor(self):
+            if serial is None or pynmea2 is None:
+                return None
+            try:
+                if not hasattr(self, 'serial') or self.serial is None:
+                    return None
+                line = self.serial.readline().decode(errors='ignore').strip()
+                if not line or not line.startswith('$'):
+                    return None
+                try:
+                    msg = pynmea2.parse(line)
+                except Exception:
+                    return None
+
+                # Parse GGA or RMC sentences for position
+                lat = getattr(msg, 'latitude', None)
+                lon = getattr(msg, 'longitude', None)
+                try:
+                    alt = float(getattr(msg, 'altitude', 0.0))
+                except Exception:
+                    alt = 0.0
+                try:
+                    fix_quality = int(getattr(msg, 'gps_qual', getattr(msg, 'gps_quality', 0)))
+                except Exception:
+                    fix_quality = 0
+                try:
+                    sats = int(getattr(msg, 'num_sats', getattr(msg, 'num_sv', 0)))
+                except Exception:
+                    sats = 0
+                try:
+                    hdop = float(getattr(msg, 'horizontal_dil', getattr(msg, 'hdop', 99.9)))
+                except Exception:
+                    hdop = 99.9
+                try:
+                    spd = float(getattr(msg, 'spd_over_grnd', 0.0))
+                except Exception:
+                    spd = 0.0
+                speed = spd * 0.514444  # knots to m/s
+                try:
+                    track = float(getattr(msg, 'true_course', 0.0))
+                except Exception:
+                    track = 0.0
+                status = getattr(msg, 'status', 'A')
+                if status == 'A' or fix_quality > 0:
+                    if lat and lon:
+                        try:
+                            return GPSData(
+                                latitude=float(lat),
+                                longitude=float(lon),
+                                altitude=float(alt),
+                                timestamp=time.time(),
+                                fix_quality=fix_quality,
+                                satellites=sats,
+                                hdop=hdop,
+                                speed=speed,
+                                track=track
+                            )
+                        except Exception:
+                            return None
+                return None
+            except Exception as e:
+                print(f"[SerialGPSReader] Read error: {e}")
+                return None
+
+
 def create_gps_reader(config: dict, event_bus=None):
     """
     Factory function to create GPS reader from config.
@@ -357,17 +447,55 @@ def create_gps_reader(config: dict, event_bus=None):
     location_config = config.get('location', {})
     
     if gps_config.get('enabled', False):
-        # Use real GPS
+        serial_dev = gps_config.get('serial_device') or ''
+        baud = gps_config.get('baudrate', 9600)
+        prefer_serial = bool(gps_config.get('prefer_serial', False))
+
+        # Detect availability of gpsd python module and serial/pynmea2
+        gps_available = True
         try:
-            reader = GPSReader(
-                host=gps_config.get('host', 'localhost'),
-                port=gps_config.get('port', 2947),
-                update_interval=gps_config.get('update_interval', 1.0),
-                event_bus=event_bus
-            )
-            return reader
-        except ImportError:
-            print("[GPS] GPS module not available, falling back to static location")
+            import gps as _gps_check  # type: ignore
+        except Exception:
+            gps_available = False
+
+        serial_available = (serial is not None and pynmea2 is not None)
+
+        # Selection logic
+        if prefer_serial:
+            if serial_dev and serial_available:
+                try:
+                    return SerialGPSReader(device=serial_dev,
+                                             baudrate=baud,
+                                             update_interval=gps_config.get('update_interval', 1.0),
+                                             event_bus=event_bus)
+                except Exception as e:
+                    print(f"[GPS] Failed to initialize SerialGPSReader: {e}")
+                    # fallthrough to gpsd
+            else:
+                print("[GPS] prefer_serial is true but serial device or dependencies missing")
+
+        # If gpsd is available and either preferred or serial not configured, use gpsd
+        if gps_available and (not prefer_serial or not serial_dev or not serial_available):
+            try:
+                return GPSReader(host=gps_config.get('host', 'localhost'),
+                                 port=gps_config.get('port', 2947),
+                                 update_interval=gps_config.get('update_interval', 1.0),
+                                 event_bus=event_bus)
+            except Exception as e:
+                print(f"[GPS] Failed to initialize GPSReader (gpsd): {e}")
+
+        # If we get here, try serial reader if available
+        if serial_dev and serial_available:
+            try:
+                return SerialGPSReader(device=serial_dev,
+                                       baudrate=baud,
+                                       update_interval=gps_config.get('update_interval', 1.0),
+                                       event_bus=event_bus)
+            except Exception as e:
+                print(f"[GPS] Failed to initialize SerialGPSReader: {e}")
+
+        if not gps_available and not (serial_dev and serial_available):
+            print("[GPS] No GPS backend available (gps module or pyserial/pynmea2). Falling back to static location")
     
     # Use static location (from config or default)
     lat = location_config.get('latitude', 0.0)
@@ -378,4 +506,5 @@ def create_gps_reader(config: dict, event_bus=None):
         print("[GPS] Warning: Using default location (0, 0)")
         print("  Set location in config.yaml under 'location' section")
     
-    return StaticLocationProvider(lat, lon, alt)
+    from sensors.static_gps import StaticGPSDevice
+    return StaticGPSDevice(lat, lon, alt)

@@ -8,7 +8,8 @@ This package provides:
 
 from sensors.base import BaseSensor
 from sensors.environmental import EnvironmentalData, BME280Sensor, DHTSensor, create_environmental_sensor
-from sensors.gps import GPSData, GPSReader, StaticLocationProvider, create_gps_reader
+from sensors.gps import GPSData, GPSReader, create_gps_reader
+from sensors.static_gps import StaticGPSDevice
 
 __all__ = [
     'BaseSensor',
@@ -18,6 +19,6 @@ __all__ = [
     'create_environmental_sensor',
     'GPSData',
     'GPSReader',
-    'StaticLocationProvider',
+    'StaticGPSDevice',
     'create_gps_reader',
 ]

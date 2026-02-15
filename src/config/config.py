@@ -166,29 +166,29 @@ class Config:
             }
         }
     
-    def load(self, path: str):
-        """Load configuration from file"""
+    @staticmethod
+    def load(path: str):
+        """Load configuration from file and return Config instance. Raises on error."""
+        config = Config()
         path = Path(path)
-        
         if not path.exists():
-            print(f"[Config] File not found: {path}, using defaults")
-            return
-        
+            raise FileNotFoundError(f"Config file not found: {path}")
         try:
             with open(path, 'r') as f:
                 if path.suffix in ['.yaml', '.yml']:
                     loaded = yaml.safe_load(f)
+                    print(f"[DEBUG] Raw YAML loaded: {loaded}")
                 elif path.suffix == '.json':
                     loaded = json.load(f)
+                    print(f"[DEBUG] Raw JSON loaded: {loaded}")
                 else:
                     raise ValueError(f"Unsupported config format: {path.suffix}")
-            
-            # Deep merge with defaults
-            self.data = self._deep_merge(self.data, loaded)
+            config.data = config._deep_merge(config.data, loaded)
             print(f"[Config] Loaded configuration from {path}")
-        
+            return config
         except Exception as e:
             print(f"[Config] Error loading config: {e}")
+            raise
     
     def save(self, path: Optional[str] = None):
         """Save configuration to file"""
@@ -209,11 +209,12 @@ class Config:
             print(f"[Config] Error saving config: {e}")
     
     def _deep_merge(self, base: Dict, update: Dict) -> Dict:
-        """Deep merge dictionaries"""
+        """Deep merge dictionaries, but fully replace dicts for matching keys."""
         result = base.copy()
         for key, value in update.items():
             if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-                result[key] = self._deep_merge(result[key], value)
+                # FULL REPLACEMENT for nested dicts (YAML wins)
+                result[key] = value
             else:
                 result[key] = value
         return result

@@ -9,6 +9,7 @@ Provides common functionality for all sensors:
 """
 
 import time
+import logging
 import threading
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, List, Generic, TypeVar, Dict, Any
@@ -35,6 +36,23 @@ class BaseSensor(ABC, Generic[T]):
     - _read_sensor(): Read data from sensor
     - _disconnect(): Clean up sensor connection (optional)
     """
+
+    def connect(self):
+        """Establish connection to sensor hardware (public)."""
+        print(f"[{self.sensor_name}] Connecting...")
+        try:
+            self._connect()
+            self.connected = True
+            print(f"[{self.sensor_name}] Connected successfully")
+            # Take initial reading
+            initial_data = self._read_sensor()
+            if initial_data:
+                with self.data_lock:
+                    self.current_data = initial_data
+        except Exception as e:
+            self.connected = False
+            print(f"[{self.sensor_name}] Connection failed: {e}")
+            raise
     
     def __init__(self,
                  update_interval: float = 1.0,
@@ -46,7 +64,6 @@ class BaseSensor(ABC, Generic[T]):
         
         Args:
             update_interval: How often to poll sensor (seconds)
-            event_bus: Event bus for publishing updates
             event_type: Event type to publish (e.g., EventType.GPS, EventType.ENVIRONMENTAL)
             sensor_name: Name for logging purposes
         """
@@ -54,22 +71,17 @@ class BaseSensor(ABC, Generic[T]):
         self.event_bus = event_bus
         self.event_type = event_type
         self.sensor_name = sensor_name
-        
+        self.logger = logging.getLogger(sensor_name)
         # Connection state
         self.connected = False
         self.running = False
-        
         # Current sensor data
         self.current_data: Optional[T] = None
         self.data_lock = threading.Lock()
-        
-        # Callbacks for data updates
         self.callbacks: List[Callable[[T], None]] = []
         self.callback_lock = threading.Lock()
-        
         # Background thread
         self.update_thread: Optional[threading.Thread] = None
-        
         # Statistics
         self.stats = {
             'readings_taken': 0,
@@ -77,60 +89,32 @@ class BaseSensor(ABC, Generic[T]):
             'last_reading_time': None,
             'start_time': None
         }
-    
     @abstractmethod
     def _connect(self):
         """
         Establish connection to sensor hardware.
-        
         Must be implemented by subclasses.
         Should raise exception if connection fails.
         Should set self.connected = True on success.
         """
         pass
-    
+
     @abstractmethod
     def _read_sensor(self) -> Optional[T]:
         """
         Read data from sensor.
-        
         Must be implemented by subclasses.
-        
         Returns:
             Sensor data or None if read failed
         """
         pass
-    
+
     def _disconnect(self):
         """
         Clean up sensor connection.
-        
         Optional - override if sensor needs cleanup.
         """
         pass
-    
-    def connect(self):
-        """Connect to sensor (public interface)."""
-        if self.connected:
-            print(f"[{self.sensor_name}] Already connected")
-            return
-        
-        print(f"[{self.sensor_name}] Connecting...")
-        try:
-            self._connect()
-            self.connected = True
-            print(f"[{self.sensor_name}] Connected successfully")
-            
-            # Take initial reading
-            initial_data = self._read_sensor()
-            if initial_data:
-                with self.data_lock:
-                    self.current_data = initial_data
-                    
-        except Exception as e:
-            self.connected = False
-            print(f"[{self.sensor_name}] Connection failed: {e}")
-            raise
     
     def start(self):
         """Start sensor reading thread."""
@@ -143,12 +127,9 @@ class BaseSensor(ABC, Generic[T]):
         
         self.running = True
         self.stats['start_time'] = time.time()
-        
         # Start background thread
         self.update_thread = threading.Thread(target=self._update_loop, daemon=True)
         self.update_thread.start()
-        
-        print(f"[{self.sensor_name}] Started (update interval: {self.update_interval}s)")
     
     def stop(self):
         """Stop sensor reading thread."""
@@ -157,12 +138,12 @@ class BaseSensor(ABC, Generic[T]):
         
         print(f"[{self.sensor_name}] Stopping...")
         self.running = False
-        
+        # self.logger.error(f"Callback error: {e}")
         # Wait for thread to finish
         if self.update_thread and self.update_thread.is_alive():
             self.update_thread.join(timeout=5.0)
         
-        # Clean up sensor
+            self.logger.info(f"Statistics:")
         try:
             self._disconnect()
         except Exception as e:

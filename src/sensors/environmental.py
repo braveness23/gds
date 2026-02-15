@@ -11,6 +11,7 @@ Environmental data is used for:
 """
 
 import time
+import logging
 import threading
 from dataclasses import dataclass
 from typing import Optional, Callable, List
@@ -133,21 +134,21 @@ class BME280Sensor(BaseSensor[EnvironmentalData]):
             # Configure sensor for weather monitoring
             self.sensor.sea_level_pressure = 1013.25  # Standard pressure
             
-            print(f"[BME280] Connected at I2C address 0x{self.i2c_address:02x}")
+            self.logger.info(f"[BME280] Connected at I2C address 0x{self.i2c_address:02x}")
             
         except ImportError:
-            print("[BME280] Adafruit BME280 library not installed")
-            print("  Install with: pip install adafruit-circuitpython-bme280")
-            print("  Also needs: pip install adafruit-blinka")
+            self.logger.error("[BME280] Adafruit BME280 library not installed")
+            self.logger.error("  Install with: pip install adafruit-circuitpython-bme280")
+            self.logger.error("  Also needs: pip install adafruit-blinka")
             raise
         
         except Exception as e:
-            print(f"[BME280] Failed to connect: {e}")
-            print(f"  Check:")
-            print(f"    - I2C is enabled (sudo raspi-config)")
-            print(f"    - BME280 is connected to I2C pins")
-            print(f"    - Correct I2C address (try 0x76 or 0x77)")
-            print(f"    - Run: i2cdetect -y 1")
+            self.logger.error(f"[BME280] Failed to connect: {e}")
+            self.logger.error("  Check:")
+            self.logger.error("    - I2C is enabled (sudo raspi-config)")
+            self.logger.error("    - BME280 is connected to I2C pins")
+            self.logger.error("    - Correct I2C address (try 0x76 or 0x77)")
+            self.logger.error("    - Run: i2cdetect -y 1")
             raise
     
     def _read_sensor(self) -> Optional[EnvironmentalData]:
@@ -160,21 +161,21 @@ class BME280Sensor(BaseSensor[EnvironmentalData]):
             
             # Validate readings
             if temperature < -40 or temperature > 85:
-                print(f"[BME280] Invalid temperature: {temperature}")
+                self.logger.warning(f"[BME280] Invalid temperature: {temperature}")
                 return None
             
             if humidity < 0 or humidity > 100:
-                print(f"[BME280] Invalid humidity: {humidity}")
+                self.logger.warning(f"[BME280] Invalid humidity: {humidity}")
                 return None
             
             if pressure < 300 or pressure > 1100:
-                print(f"[BME280] Invalid pressure: {pressure}")
+                self.logger.warning(f"[BME280] Invalid pressure: {pressure}")
                 return None
             
             # Log periodically (every minute at 5s interval)
             self._log_counter += 1
             if self._log_counter % 12 == 0:
-                print(f"[BME280] {temperature:.1f}°C, {humidity:.1f}%, {pressure:.1f} hPa")
+                self.logger.info(f"[BME280] {temperature:.1f}°C, {humidity:.1f}%, {pressure:.1f} hPa")
             
             return EnvironmentalData(
                 temperature=temperature,
@@ -184,7 +185,7 @@ class BME280Sensor(BaseSensor[EnvironmentalData]):
             )
         
         except Exception as e:
-            print(f"[BME280] Error reading sensor: {e}")
+            self.logger.error(f"[BME280] Error reading sensor: {e}")
             return None
 
 
@@ -249,23 +250,23 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
             else:
                 raise ValueError(f"Unknown sensor type: {self.sensor_type}")
             
-            print(f"[{self.sensor_type}] Connected on GPIO {self.gpio_pin}")
+            self.logger.info(f"[{self.sensor_type}] Connected on GPIO {self.gpio_pin}")
             
             # DHT needs time to stabilize
             time.sleep(2)
         
         except ImportError:
-            print(f"[{self.sensor_type}] Adafruit DHT library not installed")
-            print("  Install with: pip install adafruit-circuitpython-dht")
-            print("  Also needs: sudo apt-get install libgpiod2")
+            self.logger.error(f"[{self.sensor_type}] Adafruit DHT library not installed")
+            self.logger.error("  Install with: pip install adafruit-circuitpython-dht")
+            self.logger.error("  Also needs: sudo apt-get install libgpiod2")
             raise
         
         except Exception as e:
-            print(f"[{self.sensor_type}] Failed to connect: {e}")
-            print(f"  Check:")
-            print(f"    - DHT sensor connected to GPIO {self.gpio_pin}")
-            print(f"    - Correct sensor type ({self.sensor_type})")
-            print(f"    - Pull-up resistor (4.7k-10k ohm) if needed")
+            self.logger.error(f"[{self.sensor_type}] Failed to connect: {e}")
+            self.logger.error("  Check:")
+            self.logger.error(f"    - DHT sensor connected to GPIO {self.gpio_pin}")
+            self.logger.error(f"    - Correct sensor type ({self.sensor_type})")
+            self.logger.error("    - Pull-up resistor (4.7k-10k ohm) if needed")
             raise
     
     def _disconnect(self):
@@ -273,9 +274,9 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
         if self.sensor:
             try:
                 self.sensor.exit()
-                print(f"[{self.sensor_type}] GPIO cleaned up")
+                self.logger.info(f"[{self.sensor_type}] GPIO cleaned up")
             except Exception as e:
-                print(f"[{self.sensor_type}] Error cleaning up GPIO: {e}")
+                self.logger.error(f"[{self.sensor_type}] Error cleaning up GPIO: {e}")
     
     def _read_sensor(self) -> Optional[EnvironmentalData]:
         """Read sensor values."""
@@ -292,22 +293,22 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
             if self.sensor_type == 'DHT22':
                 # DHT22: -40 to 80°C, 0-100% humidity
                 if temperature < -40 or temperature > 80:
-                    print(f"[{self.sensor_type}] Invalid temperature: {temperature}")
+                    self.logger.warning(f"[{self.sensor_type}] Invalid temperature: {temperature}")
                     return None
             else:
                 # DHT11: 0 to 50°C, 20-90% humidity
                 if temperature < 0 or temperature > 50:
-                    print(f"[{self.sensor_type}] Invalid temperature: {temperature}")
+                    self.logger.warning(f"[{self.sensor_type}] Invalid temperature: {temperature}")
                     return None
             
             if humidity < 0 or humidity > 100:
-                print(f"[{self.sensor_type}] Invalid humidity: {humidity}")
+                self.logger.warning(f"[{self.sensor_type}] Invalid humidity: {humidity}")
                 return None
             
             # Log periodically (every minute at 10s interval)
             self._log_counter += 1
             if self._log_counter % 6 == 0:
-                print(f"[{self.sensor_type}] {temperature:.1f}°C, {humidity:.1f}%")
+                self.logger.info(f"[{self.sensor_type}] {temperature:.1f}°C, {humidity:.1f}%")
             
             return EnvironmentalData(
                 temperature=temperature,
@@ -323,7 +324,7 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
             return None
         
         except Exception as e:
-            print(f"[{self.sensor_type}] Error reading sensor: {e}")
+            self.logger.error(f"[{self.sensor_type}] Error reading sensor: {e}")
             return None
 
 
@@ -358,5 +359,5 @@ def create_environmental_sensor(config: dict, event_bus=None):
     
     else:
         # No environmental sensor
-        print("[Environmental] No sensor configured")
+        logging.warning("[Environmental] No sensor configured")
         return None

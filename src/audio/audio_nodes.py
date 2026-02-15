@@ -5,9 +5,11 @@ All timestamps are captured at the earliest possible moment (buffer arrival) for
 trilateration accuracy.
 """
 
+
 import numpy as np
 import threading
 import time
+import logging
 from dataclasses import dataclass
 from typing import Optional, Callable, List
 from abc import ABC, abstractmethod
@@ -64,7 +66,7 @@ class AudioNode(ABC):
             try:
                 output(buffer)
             except Exception as e:
-                print(f"[{self.name}] Error in output callback: {e}")
+                logging.error(f"[{self.name}] Error in output callback: {e}")
     
     @abstractmethod
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
@@ -103,7 +105,6 @@ class AudioSourceNode(AudioNode):
         """Create timestamped buffer from samples."""
         # System clock is already GPS-synced via chrony/ntpd
         timestamp = time.time()
-        
         buffer = AudioBuffer(
             samples=samples,
             timestamp=timestamp,
@@ -125,18 +126,21 @@ class ALSASourceNode(AudioSourceNode):
                  channels: int = 1,
                  buffer_size: int = 1024,
                  format_bits: int = 32):
+        # Ensure all positional arguments come before keyword arguments
         super().__init__(name, sample_rate, channels, buffer_size)
         self.device = device
         self.format_bits = format_bits
         self.stream = None
         self.pa = None
+        self.logger = logging.getLogger(self.__class__.__name__)
     
     def start(self):
         """Start ALSA capture stream."""
         try:
             import pyaudio
         except ImportError:
-            raise ImportError("pyaudio not installed. Run: pip install pyaudio")
+            self.logger.error("pyaudio not installed. Run: pip install pyaudio")
+            raise
         
         self.running = True
         self.pa = pyaudio.PyAudio()
@@ -154,15 +158,52 @@ class ALSASourceNode(AudioSourceNode):
         # Find device index if not "default"
         device_index = None
         if self.device != "default":
+            # First try: substring match against reported device names
             for i in range(self.pa.get_device_count()):
                 info = self.pa.get_device_info_by_index(i)
-                if self.device in info['name']:
+                if self.device in info['name'] or info['name'] in self.device:
                     device_index = i
-                    print(f"[{self.name}] Found device: {info['name']}")
+                    self.logger.info(f"Found device by name match: {info['name']}")
                     break
-            
+
+            # Second try: if device looks like hw:X,Y or plughw:X,Y, use /proc/asound/cards
+            if device_index is None and (self.device.startswith('hw:') or self.device.startswith('plughw:')):
+                try:
+                    # extract card number
+                    _, card_dev = self.device.split(':', 1)
+                    card_num = int(card_dev.split(',')[0])
+                    # parse /proc/asound/cards to find the card id/text
+                    card_name = None
+                    with open('/proc/asound/cards', 'r') as f:
+                        lines = f.readlines()
+                    for i in range(0, len(lines), 2):
+                        if i+1 < len(lines):
+                            header = lines[i].strip()
+                            if header.startswith(str(card_num) + ' '):
+                                # header format: "N [id       ]: short - long"
+                                parts = header.split(']')
+                                if len(parts) > 0:
+                                    # extract id within brackets
+                                    start = header.find('[')
+                                    end = header.find(']')
+                                    if start != -1 and end != -1:
+                                        card_id = header[start+1:end].strip()
+                                        card_name = card_id
+                                        break
+
+                    if card_name:
+                        for i in range(self.pa.get_device_count()):
+                            info = self.pa.get_device_info_by_index(i)
+                            if card_name in info['name'] or card_name.replace('_','') in info['name'].replace('_',''):
+                                device_index = i
+                                self.logger.info(f"Found device by card id match: {info['name']}")
+                                break
+                except Exception:
+                    # ignore parsing errors and continue to fallback
+                    pass
+
             if device_index is None:
-                print(f"[{self.name}] Warning: Device '{self.device}' not found, using default")
+                self.logger.warning(f"Device '{self.device}' not found, using default")
         
         try:
             self.stream = self.pa.open(
@@ -176,11 +217,10 @@ class ALSASourceNode(AudioSourceNode):
             )
             
             self.stream.start_stream()
-            print(f"[{self.name}] Started ALSA capture - {self.sample_rate}Hz, "
-                  f"{self.channels}ch, {self.buffer_size} samples")
+            self.logger.info(f"Started ALSA capture - {self.sample_rate}Hz, {self.channels}ch, {self.buffer_size} samples")
         
         except Exception as e:
-            print(f"[{self.name}] Failed to start audio stream: {e}")
+            self.logger.error(f"Failed to start audio stream: {e}")
             self.running = False
             raise
     
@@ -192,7 +232,7 @@ class ALSASourceNode(AudioSourceNode):
         timestamp = time.time()
         
         if status:
-            print(f"[{self.name}] Audio callback status: {status}")
+            self.logger.warning(f"Audio callback status: {status}")
         
         try:
             # Convert bytes to numpy array
@@ -205,11 +245,14 @@ class ALSASourceNode(AudioSourceNode):
             elif self.format_bits == 16:
                 samples = np.frombuffer(in_data, dtype=np.int16).astype(np.float32)
                 samples = samples / (2**15 - 1)
-            
+
             # Reshape for stereo
             if self.channels > 1:
                 samples = samples.reshape(-1, self.channels)
-            
+
+            # Debug: print buffer stats
+            self.logger.debug(f"Buffer stats: min={samples.min():.4f}, max={samples.max():.4f}, mean={samples.mean():.4f}, std={samples.std():.4f}")
+
             # Create buffer with precise timestamp
             buffer = AudioBuffer(
                 samples=samples,
@@ -219,13 +262,13 @@ class ALSASourceNode(AudioSourceNode):
                 buffer_index=self.buffer_index
             )
             self.buffer_index += 1
-            
+
             # Emit to connected nodes
             self.emit(buffer)
-        
+
         except Exception as e:
-            print(f"[{self.name}] Error in audio callback: {e}")
-        
+            self.logger.error(f"Error in audio callback: {e}")
+
         return (None, pyaudio.paContinue)
     
     def stop(self):
@@ -239,7 +282,7 @@ class ALSASourceNode(AudioSourceNode):
         if self.pa:
             self.pa.terminate()
         
-        print(f"[{self.name}] Stopped ALSA capture")
+        self.logger.info("Stopped ALSA capture")
     
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Source nodes don't process incoming buffers."""
@@ -283,11 +326,11 @@ class FileSourceNode(AudioSourceNode):
             self.read_thread.daemon = True
             self.read_thread.start()
             
-            print(f"[{self.name}] Reading from {self.filepath} "
-                  f"({self.sample_rate}Hz, {self.channels}ch)")
+            logging.info(f"[{self.name}] Reading from {self.filepath} "
+                     f"({self.sample_rate}Hz, {self.channels}ch)")
         
         except Exception as e:
-            print(f"[{self.name}] Failed to open file: {e}")
+            logging.error(f"[{self.name}] Failed to open file: {e}")
             raise
     
     def _read_loop(self):
@@ -295,15 +338,13 @@ class FileSourceNode(AudioSourceNode):
         while self.running:
             try:
                 samples = self.sf.read(self.buffer_size)
-                
                 if len(samples) == 0:
                     # End of file
                     if self.loop:
-                        self.sf.seek(0)  # Rewind
+                        self.sf.seek(0)
                         continue
                     else:
                         break
-                
                 # Pad last chunk if needed
                 if len(samples) < self.buffer_size:
                     if self.channels == 1:
@@ -311,24 +352,19 @@ class FileSourceNode(AudioSourceNode):
                     else:
                         pad_size = self.buffer_size - len(samples)
                         samples = np.pad(samples, ((0, pad_size), (0, 0)))
-                
                 # Convert to float32 if needed
                 if samples.dtype != np.float32:
                     samples = samples.astype(np.float32)
-                
                 buffer = self._create_buffer(samples)
                 self.emit(buffer)
-                
                 # Simulate realtime if requested
                 if self.realtime:
                     time.sleep(self.buffer_size / self.sample_rate)
-            
             except Exception as e:
-                print(f"[{self.name}] Error reading file: {e}")
+                logging.error(f"[{self.name}] Error reading file: {e}")
                 break
-        
         self.running = False
-        print(f"[{self.name}] Finished reading file")
+        logging.info(f"[{self.name}] Finished reading file")
     
     def stop(self):
         """Stop reading file."""
@@ -340,7 +376,7 @@ class FileSourceNode(AudioSourceNode):
         if self.sf:
             self.sf.close()
         
-        print(f"[{self.name}] Stopped file reading")
+        logging.info(f"[{self.name}] Stopped file reading")
     
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Source nodes don't process incoming buffers."""
