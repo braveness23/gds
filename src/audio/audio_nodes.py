@@ -141,7 +141,19 @@ class ALSASourceNode(AudioSourceNode):
         except ImportError:
             self.logger.error("pyaudio not installed. Run: pip install pyaudio")
             raise
-        
+
+        # Suppress ALSA warnings about missing PCM devices
+        try:
+            from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
+            ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
+            def py_error_handler(filename, line, function, err, fmt):
+                pass  # Suppress all ALSA error messages
+            c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
+            asound = cdll.LoadLibrary('libasound.so.2')
+            asound.snd_lib_error_set_handler(c_error_handler)
+        except:
+            pass  # If suppression fails, continue anyway
+
         self.running = True
         self.pa = pyaudio.PyAudio()
         
