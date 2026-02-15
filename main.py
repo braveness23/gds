@@ -143,7 +143,7 @@ class GunshotDetectionSystem:
                     sample_rate=audio_config.get('sample_rate', 48000),
                     channels=audio_config.get('channels', 1),
                     buffer_size=audio_config.get('buffer_size', 1024),
-                    event_bus=self.event_bus
+                    format_bits=audio_config.get('format_bits', 32)
                 )
                 print(f"  ✓ ALSA audio source initialized")
             else:
