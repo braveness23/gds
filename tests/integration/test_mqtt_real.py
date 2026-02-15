@@ -2,17 +2,39 @@
 
 import pytest
 import time
-from core.event_bus import Event, EventType, DetectionEvent
-from output.mqtt_output import MQTTOutputNode
-from config.config import Config
+import os
+from src.core.event_bus import Event, EventType, DetectionEvent
+from src.output.mqtt_output import MQTTOutputNode
+from src.config.config import Config
 
 
 @pytest.fixture
 def mqtt_config():
-    """Load MQTT config from config.yaml."""
+    """Load MQTT config from environment or config.yaml."""
+    # Check for environment override (useful for CI/CD and local testing)
+    broker = os.getenv('MQTT_TEST_BROKER')
+    if broker:
+        print(f"[DEBUG] Using MQTT broker from environment: {broker}")
+        return {
+            'enabled': True,
+            'broker': broker,
+            'port': int(os.getenv('MQTT_TEST_PORT', '1883')),
+            'topic': os.getenv('MQTT_TEST_TOPIC', 'gunshot/test/detections'),
+            'qos': 1,
+            'username': os.getenv('MQTT_TEST_USERNAME'),
+            'password': os.getenv('MQTT_TEST_PASSWORD'),
+            'use_tls': os.getenv('MQTT_TEST_USE_TLS', 'false').lower() == 'true'
+        }
+
+    # Fall back to config.yaml (production broker)
     config = Config('config.yaml')
     mqtt_conf = config.get('output.mqtt')
-    print(f"[DEBUG] mqtt_config loaded: {mqtt_conf}")
+
+    # Use test prefix to avoid polluting production topics
+    if mqtt_conf and 'topic' in mqtt_conf:
+        mqtt_conf['topic'] = f"test/{mqtt_conf['topic']}"
+
+    print(f"[DEBUG] mqtt_config loaded from config.yaml: {mqtt_conf}")
     return mqtt_conf
 
 

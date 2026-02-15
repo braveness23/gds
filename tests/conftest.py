@@ -8,9 +8,9 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from core.event_bus import EventBus
-from config.config import Config
-from audio.audio_nodes import AudioBuffer
+from src.core.event_bus import EventBus
+from src.config.config import Config
+from src.audio.audio_nodes import AudioBuffer
 
 
 @pytest.fixture
@@ -127,10 +127,67 @@ def reset_global_state():
     # Reset mock MQTT if used
     try:
         from tests.mocks.mock_mqtt import MockMQTTClient
-        MockMQTTClient.reset()
+        MockMQTTClient.reset_all()
     except ImportError:
         pass
-    
+
     yield
-    
+
     # Cleanup after test
+
+
+@pytest.fixture
+def mock_mqtt_client():
+    """Provide a mock MQTT client instance."""
+    from tests.mocks.mock_mqtt import MockMQTTClient
+    client = MockMQTTClient()
+    yield client
+    client.reset()
+
+
+@pytest.fixture
+def mqtt_test_config(test_config):
+    """Test configuration with localhost MQTT enabled."""
+    config = test_config
+    config.set('output.mqtt.enabled', True)
+    config.set('output.mqtt.broker', 'localhost')
+    config.set('output.mqtt.port', 1883)
+    config.set('output.mqtt.use_tls', False)
+    config.set('output.mqtt.username', None)
+    config.set('output.mqtt.password', None)
+    return config
+
+
+@pytest.fixture
+def mock_paho_mqtt(monkeypatch):
+    """Automatically patch paho.mqtt.client.Client for tests."""
+    from tests.mocks.mock_mqtt import MockMQTTClient
+    import sys
+    from types import ModuleType
+
+    def mock_client_factory(*args, **kwargs):
+        return MockMQTTClient(client_id=kwargs.get('client_id', ''))
+
+    # Create full module hierarchy: paho -> paho.mqtt -> paho.mqtt.client
+    if 'paho' not in sys.modules:
+        fake_paho = ModuleType('paho')
+        sys.modules['paho'] = fake_paho
+
+    if 'paho.mqtt' not in sys.modules:
+        fake_mqtt_pkg = ModuleType('paho.mqtt')
+        sys.modules['paho.mqtt'] = fake_mqtt_pkg
+        sys.modules['paho'].mqtt = fake_mqtt_pkg
+
+    if 'paho.mqtt.client' not in sys.modules:
+        fake_mqtt_client = ModuleType('paho.mqtt.client')
+        fake_mqtt_client.Client = mock_client_factory
+        sys.modules['paho.mqtt.client'] = fake_mqtt_client
+        sys.modules['paho.mqtt'].client = fake_mqtt_client
+    else:
+        # Module already exists, just patch the Client class
+        monkeypatch.setattr('paho.mqtt.client.Client', mock_client_factory)
+
+    yield MockMQTTClient
+
+    # Cleanup
+    MockMQTTClient.reset_all()

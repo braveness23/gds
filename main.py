@@ -12,13 +12,11 @@ This is the primary entry point that:
 
 import sys
 import time
-import sys
 import os
 import argparse
 import yaml
 import signal
 import threading
-import time
 import logging
 from src.core.logging_utils import setup_logging
 from src.config.config import load_config
@@ -29,8 +27,7 @@ from src.sensors.gps import GPSDevice
 from src.sensors.static_gps import StaticGPSDevice
 from src.sensors.environmental import EnvironmentalSensor
 from src.output.mqtt_output import MQTTOutputNode
-from output.mqtt_output import MQTTOutputNode
-from sensors.gps import create_gps_reader
+from src.sensors.gps import create_gps_reader
 
 
 class GunshotDetectionSystem:
@@ -78,203 +75,87 @@ class GunshotDetectionSystem:
         Initialize all components.
 
         Returns:
+            bool: True if initialization successful, False otherwise
+        """
+        try:
+            print(f"\n[System] Initializing components...")
 
-            def main():
-                setup_logging()
-                logger = logging.getLogger("main")
-                parser = argparse.ArgumentParser(description="Gunshot Detection System")
-                parser.add_argument('-c', '--config', default='config.yaml', help='Path to config file')
-                args = parser.parse_args()
+            # 1. Load configuration
+            self.config = load_config(self.config_path)
+            print(f"  ✓ Configuration loaded")
 
-                with open(args.config, 'r') as f:
-                    config = yaml.safe_load(f)
+            # 2. Initialize event bus
+            self.event_bus = EventBus()
+            self.event_bus.start()
+            print(f"  ✓ Event bus started")
 
-                # Setup event bus
-                event_bus = EventBus()
+            # Subscribe to events for local monitoring
+            self.event_bus.subscribe('DETECTION', self._on_detection_event)
+            self.event_bus.subscribe('SYSTEM', self._on_system_event)
 
-                # Setup audio source
-                audio_cfg = config['audio']
-                audio_source = ALSASourceNode(
-                    name='mic',
-                    device=audio_cfg.get('device', None),
-                    sample_rate=audio_cfg.get('sample_rate', 16000),
-                    channels=audio_cfg.get('channels', 1),
-                    buffer_size=audio_cfg.get('buffer_size', 1024),
-                    event_bus=event_bus
-                )
-
-                # Setup detection node
-                detection_cfg = config['detection']
-                onset_node = AubioOnsetNode(
-                    name='onset',
-                    method=detection_cfg.get('method', 'default'),
-                    threshold=detection_cfg.get('threshold', 0.1),
-                    event_bus=event_bus
-                )
-
-                # Setup output node
-                output_cfg = config['output']
-                mqtt_output = MQTTOutputNode(
-                    name='mqtt',
-                    host=output_cfg.get('host', 'localhost'),
-                    port=output_cfg.get('port', 1883),
-                    topic=output_cfg.get('topic', 'gds/detections'),
-                    event_bus=event_bus
-                )
-
-                # Setup GPS device
-                gps_cfg = config['gps']
-                if gps_cfg.get('type', 'static') == 'static':
-                    gps_device = StaticGPSDevice(
-                        lat=gps_cfg.get('lat', 0.0),
-                        lon=gps_cfg.get('lon', 0.0),
-                        alt=gps_cfg.get('alt', 0.0)
+            # 3. Initialize GPS reader if enabled
+            gps_config = self.config.get('sensors.gps', {})
+            if gps_config.get('enabled', True):
+                gps_type = gps_config.get('type', 'static')
+                if gps_type == 'static':
+                    self.gps_reader = StaticGPSDevice(
+                        latitude=gps_config.get('latitude', 0.0),
+                        longitude=gps_config.get('longitude', 0.0),
+                        altitude=gps_config.get('altitude', 0.0)
                     )
+                    print(f"  ✓ Static GPS initialized")
                 else:
-                    gps_device = GPSDevice(
-                        port=gps_cfg.get('port', '/dev/ttyUSB0'),
-                        baudrate=gps_cfg.get('baudrate', 9600)
-                    )
+                    self.gps_reader = create_gps_reader(gps_config)
+                    print(f"  ✓ GPS reader initialized")
+            else:
+                print(f"  - GPS disabled")
 
-                # Setup environmental sensor
-                env_cfg = config.get('environmental', {})
-                env_sensor = None
-                if env_cfg.get('enabled', False):
-                    env_sensor = EnvironmentalSensor(
-                        i2c_bus=env_cfg.get('i2c_bus', 1),
-                        event_bus=event_bus
-                    )
+            # 4. Initialize MQTT output if enabled
+            mqtt_config = self.config.get('output.mqtt', {})
+            if mqtt_config.get('enabled', False):
+                self.mqtt_output = MQTTOutputNode(
+                    broker=mqtt_config.get('broker', 'localhost'),
+                    port=mqtt_config.get('port', 1883),
+                    topic=mqtt_config.get('topic', 'gunshot/detections'),
+                    node_id=self.config.get('system.node_id', 'unknown'),
+                    qos=mqtt_config.get('qos', 1),
+                    username=mqtt_config.get('username'),
+                    password=mqtt_config.get('password'),
+                    use_tls=mqtt_config.get('use_tls', False),
+                    event_bus=self.event_bus,
+                    gps_reader=self.gps_reader
+                )
+                self.mqtt_output.connect()
+                print(f"  ✓ MQTT output initialized")
+            else:
+                print(f"  - MQTT disabled")
 
-                # Register event handlers
-                def on_detection(event):
-                    logger.info(f"Detection event: {event}")
+            # 5. Initialize audio source
+            audio_config = self.config.get('audio', {})
+            source_type = audio_config.get('source', 'alsa')
 
-                event_bus.subscribe('detection', on_detection)
+            if source_type == 'alsa':
+                self.audio_source = ALSASourceNode(
+                    name="ALSASource",
+                    device=audio_config.get('device', 'default'),
+                    sample_rate=audio_config.get('sample_rate', 48000),
+                    channels=audio_config.get('channels', 1),
+                    buffer_size=audio_config.get('buffer_size', 1024),
+                    event_bus=self.event_bus
+                )
+                print(f"  ✓ ALSA audio source initialized")
+            else:
+                print(f"  ! Unsupported audio source: {source_type}")
+                return False
 
-                # Start nodes
-                audio_source.start()
-                onset_node.start()
-                mqtt_output.start()
-                if env_sensor:
-                    env_sensor.start()
+            print(f"[System] Initialization complete\n")
+            return True
 
-                logger.info("System running. Press Ctrl+C to exit.")
-                try:
-                    while True:
-                        time.sleep(1)
-                except KeyboardInterrupt:
-                    logger.info("Shutting down...")
-                finally:
-                    audio_source.stop()
-                    onset_node.stop()
-                    mqtt_output.stop()
-                    if env_sensor:
-                        env_sensor.stop()
-
-            if __name__ == "__main__":
-                main()
-                device=audio_config.get('device', 'default'),
-                sample_rate=audio_config.get('sample_rate', 48000),
-                channels=audio_config.get('channels', 1),
-                buffer_size=audio_config.get('buffer_size', 1024),
-                format_bits=audio_config.get('format_bits', 32)
-            )
-        elif source_type == 'file':
-            self.audio_source = FileSourceNode(
-                name="FileSource",
-                filepath=audio_config.get('filepath'),
-                buffer_size=audio_config.get('buffer_size', 1024),
-                realtime=audio_config.get('realtime', True),
-                loop=audio_config.get('loop', False)
-            )
-        else:
-            raise ValueError(f"Unknown audio source type: {source_type}")
-
-        print(f"  Audio source: {source_type}")
-
-        # 2. Build processing chain
-        current_node = self.audio_source
-
-        # Mono conversion (if needed)
-        if audio_config.get('channels', 1) > 1:
-            mono_node = MonoConversionNode()
-            current_node.connect(mono_node.receive)
-            self.pipeline_nodes.append(mono_node)
-            current_node = mono_node
-            print(f"  + Mono conversion")
-
-        # DC removal (optional)
-        if processing_config.get('dc_removal.enabled', False):
-            dc_node = DCRemovalNode(
-                cutoff_freq=processing_config.get('dc_removal.cutoff', 5.0)
-            )
-            current_node.connect(dc_node.receive)
-            self.pipeline_nodes.append(dc_node)
-            current_node = dc_node
-            print(f"  + DC removal")
-
-        # High-pass filter
-        if processing_config.get('highpass.enabled', True):
-            hpf_node = HighPassFilterNode(
-                cutoff_freq=processing_config.get('highpass.cutoff', 5000),
-                order=processing_config.get('highpass.order', 4),
-                filter_type=processing_config.get('highpass.type', 'butterworth')
-            )
-            current_node.connect(hpf_node.receive)
-            self.pipeline_nodes.append(hpf_node)
-            current_node = hpf_node
-            print(f"  + High-pass filter ({processing_config.get('highpass.cutoff', 5000)}Hz)")
-
-        # Gain (optional)
-        gain_db = processing_config.get('gain.db', 0.0)
-        if gain_db != 0.0:
-            gain_node = GainNode(gain_db=gain_db)
-            current_node.connect(gain_node.receive)
-            self.pipeline_nodes.append(gain_node)
-            current_node = gain_node
-            print(f"  + Gain ({gain_db}dB)")
-
-        # 3. Create splitter for multiple detectors
-        splitter = BufferSplitterNode()
-        current_node.connect(splitter.receive)
-        self.pipeline_nodes.append(splitter)
-        print(f"  + Splitter (for parallel detection)")
-
-        # 4. Create detectors
-        detector_count = 0
-
-        # Aubio detector
-        if detection_config.get('aubio.enabled', True):
-            aubio_node = AubioOnsetNode(
-                name="Aubio",
-                method=detection_config.get('aubio.method', 'complex'),
-                hop_size=detection_config.get('aubio.hop_size', 512),
-                threshold=detection_config.get('aubio.threshold', 0.3),
-                silence_threshold=detection_config.get('aubio.silence_threshold', -70.0),
-                event_bus=self.event_bus
-            )
-            splitter.connect(aubio_node.receive)
-            self.pipeline_nodes.append(aubio_node)
-            detector_count += 1
-            print(f"  + Aubio detector ({detection_config.get('aubio.method', 'complex')})")
-
-        # Threshold detector
-        if detection_config.get('threshold.enabled', False):
-            threshold_node = ThresholdDetectorNode(
-                name="Threshold",
-                threshold_db=detection_config.get('threshold.threshold_db', -20.0),
-                min_duration_ms=detection_config.get('threshold.min_duration_ms', 10.0),
-                event_bus=self.event_bus
-            )
-            splitter.connect(threshold_node.receive)
-            self.pipeline_nodes.append(threshold_node)
-            detector_count += 1
-            print(f"  + Threshold detector ({detection_config.get('threshold.threshold_db', -20.0)}dB)")
-
-        if detector_count == 0:
-            print(f"  WARNING: No detectors enabled!")
-
-        print(f"[System] Pipeline built with {len(self.pipeline_nodes)} nodes")
+        except Exception as e:
+            print(f"[System] Initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
     def start(self):
         """Start the detection system."""
