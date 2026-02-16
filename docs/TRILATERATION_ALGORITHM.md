@@ -208,13 +208,13 @@ Window needed: ~30s (with margin)
 **Setting the window:**
 ```bash
 # For gunshots only (local events)
-python trilateration_server.py --time-window 2.0
+python scripts/trilateration_server.py --time-window 2.0
 
 # For thunder and distant events (default)
-python trilateration_server.py --time-window 30.0
+python scripts/trilateration_server.py --time-window 30.0
 
 # For very distant thunder (10km+)
-python trilateration_server.py --time-window 60.0
+python scripts/trilateration_server.py --time-window 60.0
 ```
 
 ### How It Works
@@ -430,7 +430,7 @@ Expected accuracy: 10-50m
 ### Gunshot Detection (Close Range)
 
 ```bash
-python trilateration_server.py \
+python scripts/trilateration_server.py \
     --time-window 2.0 \
     --min-nodes 3 \
     --max-nodes 5 \
@@ -445,7 +445,7 @@ Settings:
 ### Thunder Detection (Long Range)
 
 ```bash
-python trilateration_server.py \
+python scripts/trilateration_server.py \
     --time-window 30.0 \
     --min-nodes 4 \
     --max-nodes 10 \
@@ -460,7 +460,7 @@ Settings:
 ### Mixed Deployment
 
 ```bash
-python trilateration_server.py \
+python scripts/trilateration_server.py \
     --time-window 30.0 \
     --min-nodes 3 \
     --max-nodes 8
