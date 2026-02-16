@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Wrapper to run the project's Python interpreter inside `./.venv`.
+# Usage: tools/py <args...>
+VENV="$PWD/.venv"
+PY="$VENV/bin/python"
+if [ -x "$PY" ]; then
+  exec "$PY" "$@"
+else
+  echo "Error: .venv not found at $VENV" >&2
+  echo "Create it with: python3 -m venv .venv" >&2
+  exit 2
+fi

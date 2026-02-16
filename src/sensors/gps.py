@@ -6,12 +6,12 @@ Supports both callback-based updates and on-demand position retrieval.
 
 import logging
 import time
-from dataclasses import dataclass
 from typing import Callable, Optional
 
 from src.core.event_bus import EventType
 from src.sensors.base_gps import BaseGPSDevice
 from src.sensors.static_gps import StaticGPSDevice
+from src.sensors.types import GPSData
 
 # Optional serial/NMEA parsing support
 logger = logging.getLogger(__name__)
@@ -24,53 +24,7 @@ except (ImportError, ModuleNotFoundError) as e:
     pynmea2 = None
 
 
-@dataclass
-class GPSData:
-    """GPS position and timing data."""
 
-    latitude: float
-    longitude: float
-    altitude: float
-    timestamp: float  # System time when position was captured
-    fix_quality: int  # 0=no fix, 1=GPS, 2=DGPS, 3=PPS, 4=RTK, 5=Float RTK
-    satellites: int  # Number of satellites in view
-    hdop: float  # Horizontal dilution of precision
-    speed: float  # Speed in m/s
-    track: float  # Track angle in degrees
-
-    @property
-    def has_fix(self) -> bool:
-        """Check if GPS has a valid fix."""
-        return self.fix_quality > 0
-
-    @property
-    def fix_type_name(self) -> str:
-        """Human-readable fix type."""
-        types = {
-            0: "No Fix",
-            1: "GPS",
-            2: "DGPS",
-            3: "PPS",
-            4: "RTK Fixed",
-            5: "RTK Float",
-        }
-        return types.get(self.fix_quality, "Unknown")
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
-        return {
-            "latitude": self.latitude,
-            "longitude": self.longitude,
-            "altitude": self.altitude,
-            "timestamp": self.timestamp,
-            "fix_quality": self.fix_quality,
-            "fix_type": self.fix_type_name,
-            "satellites": self.satellites,
-            "hdop": self.hdop,
-            "speed": self.speed,
-            "track": self.track,
-            "has_fix": self.has_fix,
-        }
 
 
 class GPSReader(BaseGPSDevice[GPSData]):

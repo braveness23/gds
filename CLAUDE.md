@@ -224,6 +224,8 @@ When user requests "cleanup", "commit changes", or similar:
 - Wait for user approval before executing `git commit --no-verify` or `git merge`
  - Before committing, create a new branch for the commit if one does not already exist: `git checkout -b <branch-name>`.
 
+Post-commit: After making the commit(s), begin the merge-to-main process by showing the same approval summary and asking the user "Merge to main now?"; only proceed on explicit approval.
+
 **Pull Requests:**
 
 - [To be defined when repo goes public - likely will include PR templates, review requirements, etc.]
@@ -249,24 +251,37 @@ When user requests "cleanup", "commit changes", or similar:
 
 ### Virtual Environment Philosophy
 
-**CRITICAL: Always use Python venv - NEVER install packages globally**
+**CRITICAL: Always use the project virtualenv named `.venv` - NEVER install packages globally**
 
-- The application is intended to run in a Python venv
-- Development MUST take place in the venv
-- Production on Raspberry Pi uses venv
-- Before running commands, check if venv is already activated
+- The application is intended to run in the project's `.venv` directory
+- Development MUST take place using `./.venv/bin/python` or an activated `.venv`
+- Production on Raspberry Pi uses `.venv`
 - DO NOT install packages globally (no `sudo pip install`)
+
+**Agent enforcement:**
+
+- All automation, CLI helpers, CI scripts, editors, and assistant actions MUST prefer the explicit interpreter path `./.venv/bin/python`.
+- If an automated script detects that the current Python interpreter is not the project's `.venv`, it should either:
+   - fail fast with a clear message instructing the user to run `./.venv/bin/python <command>` or activate the venv, or
+   - create `.venv` and install required packages before continuing only if explicitly allowed by the user.
+- Do not rely on shell activation alone (`source .venv/bin/activate`) for automation; prefer explicit interpreter invocation.
+
+**Enforcement guidance:**
+
+- Automation, CI, and tools should prefer the explicit interpreter path `./.venv/bin/python` rather than relying solely on activation in an interactive shell. This is the most reliable approach for scripts and editors.
 
 **Checking venv activation:**
 
 ```bash
-# Check if already in venv (look for (venv) in prompt, or check $VIRTUAL_ENV)
+# Prefer explicit interpreter invocation to avoid relying on activation
+./.venv/bin/python -V || echo "No .venv found; create with: python3 -m venv .venv"
+
+# If you prefer activation (interactive use):
 if [ -z "$VIRTUAL_ENV" ]; then
-    source venv/bin/activate  # Windows: venv\Scripts\activate
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
 fi
 
-# VSCode automatically activates venv in integrated terminal
-# You don't need to manually activate if using VSCode terminal
+# VSCode integrated terminal should use the workspace interpreter (see .vscode/settings.json)
 ```
 
 ### Dependency Management Philosophy
@@ -427,12 +442,14 @@ git commit -m "chore: update dependencies"
 
 **Always run automatically:**
 
-- `python scripts/update_requirements.py` after modifying `setup.py` dependencies
+- `./.venv/bin/python scripts/update_requirements.py` after modifying `setup.py` dependencies
 
 **Context-specific auto-run:**
 
 - `pip install -e .[dev]` when dependencies change (in venv)
 - `pytest tests/` after making code changes (to validate)
+
+When specifying commands in automation or documentation, always show the `.venv`-prefixed interpreter (or the `tools/py` wrapper) to avoid ambiguity.
 
 **Never auto-run (always ask first):**
 

@@ -1,7 +1,60 @@
 #!/usr/bin/env python3
-"""Setup script for Gunshot Detection System."""
+"""Setup script for Gunshot Detection System.
 
+Enforcement: This script prefers being run from the project's `.venv`.
+If not executed with the `.venv` interpreter, the script will refuse to
+proceed and will either instruct the user to re-run using `./.venv/bin/python`
+or (if `.venv` is missing) offer to create it and install requirements.
+"""
+
+import os
+import sys
+import subprocess
 from pathlib import Path
+
+# Prefer being run from the project's .venv to avoid accidental global installs
+PROJECT_ROOT = Path(__file__).resolve().parent
+VENV_PATH = PROJECT_ROOT / ".venv"
+
+def _in_project_venv():
+    # Check VIRTUAL_ENV env var or sys.prefix match
+    venv_env = os.environ.get("VIRTUAL_ENV")
+    if venv_env:
+        try:
+            return Path(venv_env).resolve() == VENV_PATH.resolve()
+        except Exception:
+            return False
+    # Fallback: compare sys.prefix to .venv path
+    try:
+        return Path(sys.prefix).resolve() == VENV_PATH.resolve()
+    except Exception:
+        return False
+
+if not _in_project_venv():
+    msg = (
+        "ERROR: setup.py must be run using the project's .venv interpreter.\n"
+        "Run: ./.venv/bin/python setup.py <args>\n"
+    )
+    sys.stderr.write(msg)
+    # If .venv doesn't exist, offer to create it and install requirements
+    if not VENV_PATH.exists():
+        try:
+            sys.stderr.write(".venv not found — creating one now...\n")
+            subprocess.check_call([sys.executable, "-m", "venv", str(VENV_PATH)])
+            pip_py = VENV_PATH / "bin" / "python"
+            if pip_py.exists():
+                req_file = PROJECT_ROOT / "requirements.txt"
+                if req_file.exists():
+                    sys.stderr.write("Installing requirements into .venv...\n")
+                    subprocess.check_call([str(pip_py), "-m", "pip", "install", "-r", str(req_file)])
+                else:
+                    sys.stderr.write("No requirements.txt found; please run update_requirements.py in .venv.\n")
+            sys.stderr.write("Re-run setup using: ./.venv/bin/python setup.py <args>\n")
+        except subprocess.CalledProcessError:
+            sys.stderr.write("Failed to create .venv or install requirements. Aborting.\n")
+        except Exception as exc:  # pragma: no cover - defensive
+            sys.stderr.write(f"Unexpected error while preparing .venv: {exc}\n")
+    sys.exit(1)
 
 from setuptools import find_packages, setup
 
