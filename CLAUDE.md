@@ -105,6 +105,7 @@
 - Branch directly off `main` and merge back to `main` (until repo goes public)
 - Branch naming: use descriptive names like `feature/sensor-calibration`, `fix/gps-timeout`, `refactor/audio-pipeline`
 - When repo becomes public, we'll adopt a more sophisticated branching strategy
+ - Create a new branch for each commit to keep changes isolated and history granular (e.g., `git checkout -b fix/gps-timeout`).
 
 **Commit Messages (Angular Convention):**
 
@@ -158,6 +159,11 @@ When user requests "cleanup", "commit changes", or similar:
    ```bash
    git status
    git diff
+   ```
+
+0. **Create a branch for this cleanup:**
+   ```bash
+   git checkout -b cleanup/<short-description>
    ```
 
 2. **Stage and commit by logical concern:**
@@ -216,6 +222,7 @@ When user requests "cleanup", "commit changes", or similar:
   - Pre-commit status (should always be ✅ passed)
   - For merges: source and target branches
 - Wait for user approval before executing `git commit --no-verify` or `git merge`
+ - Before committing, create a new branch for the commit if one does not already exist: `git checkout -b <branch-name>`.
 
 **Pull Requests:**
 
@@ -288,6 +295,11 @@ fi
 4. Test: `pip install -e .[dev]` and run `pytest`
 5. Commit both `setup.py` and regenerated `requirements*.txt`
 6. Pre-commit hook will verify sync automatically
+
+0. **Create a branch for dependency changes before editing**
+   ```bash
+   git checkout -b chore/deps/<short-description>
+   ```
 
 **Example:**
 

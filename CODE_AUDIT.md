@@ -515,21 +515,11 @@ scipy>=1.7.0,<2.0.0
 
 ## 🎯 7. MISSING VALIDATION
 
-### 7.1 No Validation of MQTT Topic Names
-**SEVERITY: MEDIUM** 🟡
-**File:** [src/output/mqtt_output.py:62](src/output/mqtt_output.py#L62)
+### 7.1 MQTT Topic Validation — RESOLVED
+**SEVERITY: RESOLVED** ✅
+**File:** [src/output/mqtt_output.py](src/output/mqtt_output.py)
 
-```python
-self.base_topic = topic  # ❌ No validation - could be None, "", or invalid
-```
-
-**Fix:**
-```python
-if not topic or not isinstance(topic, str):
-    raise ValueError("MQTT topic must be non-empty string")
-if '+' in topic or '#' in topic:
-    raise ValueError("MQTT topic cannot contain wildcards")
-```
+MQTT topic validation has been implemented in the `MQTTOutputNode` constructor to ensure the base topic is a non-empty string and does not contain MQTT wildcards (`+` or `#`). Related tests ran in the repository venv and passed.
 
 ---
 
@@ -561,8 +551,8 @@ if self.device != "default":
 | Architecture | 0 | 0 | 2 | 1 | **3** |
 | Error Handling | 0 | 0 | 1 | 0 | **1** |
 | Config/Dependencies | 0 | 0 | 2 | 1 | **3** |
-| Validation | 0 | 0 | 2 | 0 | **2** |
-| **TOTAL** | **2** | **2** | **12** | **3** | **19** |
+| Validation | 0 | 0 | 1 | 0 | **1** |
+| **TOTAL** | **2** | **2** | **11** | **3** | **18** |
 
 ---
 
@@ -597,9 +587,9 @@ if self.device != "default":
 ### 🟡 MEDIUM (Fix This Month)
 
 6. **Add input validation**
-   - MQTT topic names
-   - Audio device strings
-   - Configuration values
+    - MQTT topic names — DONE (validated in `src/output/mqtt_output.py`)
+    - Audio device strings
+    - Configuration values
 
 7. **Fix event queue overflow handling**
    - Make queue size configurable

@@ -59,6 +59,11 @@ class MQTTOutputNode:
         self.logger = logging.getLogger("MQTTOutput")
         self.broker = broker
         self.port = port
+        # Validate base topic: must be a non-empty string and not contain MQTT wildcards
+        if not isinstance(topic, str) or not topic:
+            raise ValueError("MQTT topic must be a non-empty string")
+        if "+" in topic or "#" in topic:
+            raise ValueError("MQTT topic must not contain MQTT wildcards '+' or '#'")
         self.base_topic = topic
         self.node_id = node_id
         self.qos = qos
