@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git stash:*)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)",
+      "Bash(pre-commit run:*)",
+      "Bash(echo:*)",
+      "Bash(python -m pre_commit run:*)"
+    ]
+  }
+}
