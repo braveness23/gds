@@ -97,11 +97,19 @@ class AubioOnsetNode(AudioNode):
         # Log periodically to avoid spam (every 1000 buffers ~= every 20 seconds at 48kHz)
         if buffer.buffer_index % 1000 == 0:
             self.logger.info(
-                f"Processed {buffer.buffer_index} buffers (latest: min={buffer.samples.min():.4f}, max={buffer.samples.max():.4f}, mean={buffer.samples.mean():.4f}, std={buffer.samples.std():.4f})"
+                f"Processed {buffer.buffer_index} buffers (latest: "
+                f"min={buffer.samples.min():.4f}, "
+                f"max={buffer.samples.max():.4f}, "
+                f"mean={buffer.samples.mean():.4f}, "
+                f"std={buffer.samples.std():.4f})"
             )
         else:
             self.logger.debug(
-                f"Received buffer {buffer.buffer_index} (min={buffer.samples.min():.4f}, max={buffer.samples.max():.4f}, mean={buffer.samples.mean():.4f}, std={buffer.samples.std():.4f})"
+                f"Received buffer {buffer.buffer_index} "
+                f"(min={buffer.samples.min():.4f}, "
+                f"max={buffer.samples.max():.4f}, "
+                f"mean={buffer.samples.mean():.4f}, "
+                f"std={buffer.samples.std():.4f})"
             )
         # Initialize detector on first buffer
         if self.onset_detector is None:
@@ -126,7 +134,7 @@ class AubioOnsetNode(AudioNode):
         sample_index = 0
 
         while sample_index + self.hop_size <= len(samples):
-            chunk = samples[sample_index : sample_index + self.hop_size]
+            chunk = samples[sample_index:sample_index + self.hop_size]
 
             # Convert to aubio format (float32)
             chunk_float = chunk.astype(np.float32)
@@ -235,7 +243,11 @@ class ThresholdDetectorNode(AudioNode):
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Detect amplitude threshold crossings."""
         self.logger.info(
-            f"Received buffer {buffer.buffer_index} (min={buffer.samples.min():.4f}, max={buffer.samples.max():.4f}, mean={buffer.samples.mean():.4f}, std={buffer.samples.std():.4f})"
+            f"Received buffer {buffer.buffer_index} "
+            f"(min={buffer.samples.min():.4f}, "
+            f"max={buffer.samples.max():.4f}, "
+            f"mean={buffer.samples.mean():.4f}, "
+            f"std={buffer.samples.std():.4f})"
         )
         # Update min_duration in samples
         if self.min_duration_samples == 0:

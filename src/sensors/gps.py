@@ -509,7 +509,8 @@ def create_gps_reader(config: dict, event_bus=None):
 
         if not gps_available and not (serial_dev and serial_available):
             logger.warning(
-                "No GPS backend available (gps module or pyserial/pynmea2). Falling back to static location"
+                "No GPS backend available (gps module or pyserial/pynmea2). "
+                "Falling back to static location"
             )
 
     # Use static location (from config or default)

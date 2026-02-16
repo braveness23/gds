@@ -1,4 +1,4 @@
-.PHONY: help install test clean run deploy
+.PHONY: help install test test-unit test-integration test-coverage test-watch clean run service deploy format lint
 
 help:
 	@echo "Gunshot Detection System - Make Commands"
@@ -19,23 +19,24 @@ install:
 
 test:
 	@echo "Running tests..."
-	pytest tests/ -v
+	python -m pytest tests/ -v
 
 test-unit:
 	@echo "Running unit tests..."
-	pytest tests/unit/ -v
+	python -m pytest tests/unit/ -v
 
 test-integration:
 	@echo "Running integration tests..."
-	pytest tests/integration/ -v
+	python -m pytest tests/integration/ -v
 
 test-coverage:
 	@echo "Running tests with coverage..."
-	pytest tests/unit/ tests/integration/ --cov=src --cov-report=html --cov-report=term-missing
+	python -m pytest tests/unit/ tests/integration/ --cov=src --cov-report=html --cov-report=term-missing
 	@echo "Coverage report: htmlcov/index.html"
 
 test-watch:
 	@echo "Running tests in watch mode..."
+	@echo "Note: Requires pytest-watch (pip install pytest-watch)"
 	pytest-watch tests/unit/ -- -v
 
 clean:
@@ -46,7 +47,7 @@ clean:
 
 run:
 	@echo "Starting detector..."
-	python src/main.py --config config.yaml
+	python main.py --config examples/config.example.yaml
 
 service:
 	@echo "Installing systemd service..."
@@ -64,12 +65,12 @@ endif
 	@echo "Deploying to $(PI_HOST)..."
 	rsync -avz --exclude=venv --exclude=__pycache__ --exclude=.git \
 		. $(PI_HOST):~/gunshot-detection-system/
-	ssh $(PI_HOST) 'cd ~/gunshot-detection-system && sudo bash install.sh'
+	ssh $(PI_HOST) 'cd ~/gunshot-detection-system && sudo bash scripts/install.sh'
 
 format:
 	@echo "Formatting code with black..."
-	black src/
+	python -m black src/
 
 lint:
 	@echo "Running flake8..."
-	flake8 src/ --max-line-length=100
+	python -m flake8 src/ --max-line-length=100

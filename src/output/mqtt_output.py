@@ -303,9 +303,11 @@ class MQTTOutputNode:
                     try:
                         return o.item()
                     except (AttributeError, TypeError, ValueError) as e:
-                        # Conversion to native type failed; log at debug level and fall back to str()
+                        # Conversion to native type failed; log at debug
+                        # level and fall back to str()
                         self.logger.debug(
-                            "_json_default: failed to convert object via .item(): %s",
+                            "_json_default: failed to convert object via "
+                            ".item(): %s",
                             e,
                             exc_info=True,
                         )

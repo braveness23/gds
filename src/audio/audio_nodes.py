@@ -213,7 +213,7 @@ class ALSASourceNode(AudioSourceNode):
                                     start = header.find("[")
                                     end = header.find("]")
                                     if start != -1 and end != -1:
-                                        card_id = header[start + 1 : end].strip()
+                                        card_id = header[start + 1:end].strip()
                                         card_name = card_id
                                         break
 
@@ -250,7 +250,8 @@ class ALSASourceNode(AudioSourceNode):
 
             self.stream.start_stream()
             self.logger.info(
-                f"Started ALSA capture - {self.sample_rate}Hz, {self.channels}ch, {self.buffer_size} samples"
+                f"Started ALSA capture - {self.sample_rate}Hz, "
+                f"{self.channels}ch, {self.buffer_size} samples"
             )
 
         except (IOError, OSError, ValueError) as e:
@@ -286,7 +287,9 @@ class ALSASourceNode(AudioSourceNode):
 
             # Debug: print buffer stats
             self.logger.debug(
-                f"Buffer stats: min={samples.min():.4f}, max={samples.max():.4f}, mean={samples.mean():.4f}, std={samples.std():.4f}"
+                f"Buffer stats: min={samples.min():.4f}, "
+                f"max={samples.max():.4f}, mean={samples.mean():.4f}, "
+                f"std={samples.std():.4f}"
             )
 
             # Create buffer with precise timestamp
