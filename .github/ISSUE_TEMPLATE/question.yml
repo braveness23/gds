@@ -1,0 +1,72 @@
+name: Question
+description: Ask a question about usage, setup, or functionality
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question? We're here to help!
+
+        **Before asking:**
+        - Check the [documentation](https://github.com/braveness23/gds/tree/main/docs)
+        - Search [existing issues](https://github.com/braveness23/gds/issues)
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What would you like to know?
+      placeholder: How do I...? / Why does...?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: What area is your question about?
+      options:
+        - Installation & Setup
+        - Configuration
+        - Hardware (GPS, Sensors, Audio)
+        - Audio Processing
+        - Detection Algorithms
+        - MQTT & Networking
+        - Trilateration
+        - Testing & Development
+        - Deployment
+        - Troubleshooting
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What I've Tried
+      description: What have you already tried or researched?
+      placeholder: |
+        I looked in...
+        I tried...
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any additional information that might help (config, logs, screenshots, etc.)
+      placeholder: I'm trying to... / My setup is...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have checked the documentation
+          required: true
+        - label: I have searched existing issues
+          required: true

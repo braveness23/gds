@@ -1,5 +1,11 @@
 # Gunshot Detection System
 
+[![CI](https://github.com/braveness23/gds/actions/workflows/ci.yml/badge.svg)](https://github.com/braveness23/gds/actions/workflows/ci.yml)
+[![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 A distributed acoustic gunshot detection and trilateration system designed for Raspberry Pi fleets with GPS/PPS timing, environmental sensors, and mesh networking capabilities.
 
 ## Features
