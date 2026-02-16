@@ -1,7 +1,7 @@
 import time
 
 from .base_gps import BaseGPSDevice
-from .gps import GPSData
+from .types import GPSData
 
 
 class StaticGPSDevice(BaseGPSDevice[GPSData]):
