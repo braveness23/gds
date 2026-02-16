@@ -24,9 +24,6 @@ except (ImportError, ModuleNotFoundError) as e:
     pynmea2 = None
 
 
-
-
-
 class GPSReader(BaseGPSDevice[GPSData]):
     """
     GPS reader using gpsd daemon.

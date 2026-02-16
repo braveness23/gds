@@ -8,13 +8,14 @@ or (if `.venv` is missing) offer to create it and install requirements.
 """
 
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 # Prefer being run from the project's .venv to avoid accidental global installs
 PROJECT_ROOT = Path(__file__).resolve().parent
 VENV_PATH = PROJECT_ROOT / ".venv"
+
 
 def _in_project_venv():
     # Check VIRTUAL_ENV env var or sys.prefix match
@@ -29,6 +30,7 @@ def _in_project_venv():
         return Path(sys.prefix).resolve() == VENV_PATH.resolve()
     except Exception:
         return False
+
 
 if not _in_project_venv():
     msg = (
@@ -46,12 +48,18 @@ if not _in_project_venv():
                 req_file = PROJECT_ROOT / "requirements.txt"
                 if req_file.exists():
                     sys.stderr.write("Installing requirements into .venv...\n")
-                    subprocess.check_call([str(pip_py), "-m", "pip", "install", "-r", str(req_file)])
+                    subprocess.check_call(
+                        [str(pip_py), "-m", "pip", "install", "-r", str(req_file)]
+                    )
                 else:
-                    sys.stderr.write("No requirements.txt found; please run update_requirements.py in .venv.\n")
+                    sys.stderr.write(
+                        "No requirements.txt found; please run update_requirements.py in .venv.\n"
+                    )
             sys.stderr.write("Re-run setup using: ./.venv/bin/python setup.py <args>\n")
         except subprocess.CalledProcessError:
-            sys.stderr.write("Failed to create .venv or install requirements. Aborting.\n")
+            sys.stderr.write(
+                "Failed to create .venv or install requirements. Aborting.\n"
+            )
         except Exception as exc:  # pragma: no cover - defensive
             sys.stderr.write(f"Unexpected error while preparing .venv: {exc}\n")
     sys.exit(1)
