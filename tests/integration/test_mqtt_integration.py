@@ -73,9 +73,7 @@ class TestMQTTIntegration:
 
         # Check published message contains detection data
         detection_msgs = [
-            m
-            for m in messages
-            if b"detections" in m.topic.encode() or "detections" in m.topic
+            m for m in messages if b"detections" in m.topic.encode() or "detections" in m.topic
         ]
         assert len(detection_msgs) >= 1
 

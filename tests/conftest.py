@@ -9,9 +9,10 @@ import pytest
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from src.audio.audio_nodes import AudioBuffer
-from src.config.config import Config
-from src.core.event_bus import EventBus
+# Import after path modification
+from src.audio.audio_nodes import AudioBuffer  # noqa: E402
+from src.config.config import Config  # noqa: E402
+from src.core.event_bus import EventBus  # noqa: E402
 
 
 @pytest.fixture

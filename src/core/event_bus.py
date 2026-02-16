@@ -89,9 +89,7 @@ class EventBus:
         self.lock = threading.Lock()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def subscribe(
-        self, event_type: Optional[EventType], callback: Callable[[Event], None]
-    ):
+    def subscribe(self, event_type: Optional[EventType], callback: Callable[[Event], None]):
         """Subscribe to specific event type or all events"""
         with self.lock:
             if event_type is None:
@@ -117,16 +115,10 @@ class EventBus:
             # Debug log for tracing published events
             try:
                 evt_type = (
-                    event.event_type.value
-                    if hasattr(event, "event_type")
-                    else str(type(event))
+                    event.event_type.value if hasattr(event, "event_type") else str(type(event))
                 )
                 src = getattr(event, "source", "<unknown>")
-                buf_idx = (
-                    event.data.get("buffer_index")
-                    if isinstance(event.data, dict)
-                    else None
-                )
+                buf_idx = event.data.get("buffer_index") if isinstance(event.data, dict) else None
                 self.logger.debug(
                     f"[{self.name}] Published event: type={evt_type} "
                     f"source={src} buffer_index={buf_idx} "
@@ -141,9 +133,7 @@ class EventBus:
                 )
         except queue.Full:
             self.stats["events_dropped"] += 1
-            self.logger.warning(
-                f"[{self.name}] Warning: Event queue full, dropping event"
-            )
+            self.logger.warning(f"[{self.name}] Warning: Event queue full, dropping event")
 
     def start(self):
         """Start event dispatch thread"""
@@ -184,9 +174,7 @@ class EventBus:
                     # Intentionally broad: isolate callback failures to prevent
                     # one bad subscriber from crashing the event bus.
                     # Still excludes system exits (KeyboardInterrupt, etc.)
-                    self.logger.error(
-                        f"[{self.name}] Error in subscriber callback: {e}"
-                    )
+                    self.logger.error(f"[{self.name}] Error in subscriber callback: {e}")
 
             # Send to all-events subscribers
             for callback in self.all_subscribers:
@@ -196,9 +184,7 @@ class EventBus:
                     # Intentionally broad: isolate callback failures to prevent
                     # one bad subscriber from crashing the event bus.
                     # Still excludes system exits (KeyboardInterrupt, etc.)
-                    self.logger.error(
-                        f"[{self.name}] Error in all-events callback: {e}"
-                    )
+                    self.logger.error(f"[{self.name}] Error in all-events callback: {e}")
 
     def get_stats(self) -> Dict:
         """Get event bus statistics"""

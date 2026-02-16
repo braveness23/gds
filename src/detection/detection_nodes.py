@@ -134,7 +134,7 @@ class AubioOnsetNode(AudioNode):
         sample_index = 0
 
         while sample_index + self.hop_size <= len(samples):
-            chunk = samples[sample_index:sample_index + self.hop_size]
+            chunk = samples[sample_index : sample_index + self.hop_size]
 
             # Convert to aubio format (float32)
             chunk_float = chunk.astype(np.float32)
@@ -251,9 +251,7 @@ class ThresholdDetectorNode(AudioNode):
         )
         # Update min_duration in samples
         if self.min_duration_samples == 0:
-            self.min_duration_samples = int(
-                (self.min_duration_ms / 1000.0) * buffer.sample_rate
-            )
+            self.min_duration_samples = int((self.min_duration_ms / 1000.0) * buffer.sample_rate)
 
         # Get mono samples
         samples = buffer.samples if buffer.is_mono else np.mean(buffer.samples, axis=1)
@@ -314,8 +312,7 @@ class ThresholdDetectorNode(AudioNode):
                         "threshold_db": self.threshold_db,
                         "peak_amplitude": float(self.event_peak),
                         "duration_samples": event_duration_samples,
-                        "duration_ms": (event_duration_samples / buffer.sample_rate)
-                        * 1000,
+                        "duration_ms": (event_duration_samples / buffer.sample_rate) * 1000,
                     }
                     detection.data.setdefault("metadata", meta)
                     setattr(detection, "metadata", meta)

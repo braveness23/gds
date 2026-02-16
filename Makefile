@@ -69,8 +69,8 @@ endif
 
 format:
 	@echo "Formatting code with black..."
-	python -m black src/
+	python -m black src/ tests/ scripts/
 
 lint:
 	@echo "Running flake8..."
-	python -m flake8 src/ --max-line-length=100
+	python -m flake8 src/ tests/ scripts/

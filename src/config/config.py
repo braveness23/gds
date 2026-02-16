@@ -190,11 +190,7 @@ class Config:
         """Deep merge dictionaries recursively."""
         result = base.copy()
         for key, value in update.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 # Recursively merge nested dicts
                 result[key] = self._deep_merge(result[key], value)
             else:

@@ -132,9 +132,7 @@ class TrilaterationEngine:
         detections = sorted(detections, key=lambda d: d.timestamp)
 
         # Extract positions and times
-        positions = np.array(
-            [[d.latitude, d.longitude, d.altitude] for d in detections]
-        )
+        positions = np.array([[d.latitude, d.longitude, d.altitude] for d in detections])
         timestamps = np.array([d.timestamp for d in detections])
 
         # Convert lat/lon to meters (approximate, good for local area)
@@ -142,9 +140,7 @@ class TrilaterationEngine:
 
         # Use first detection as reference (earliest time)
         time_diffs = timestamps - timestamps[0]  # Time differences in seconds
-        distance_diffs = (
-            time_diffs * self.speed_of_sound
-        )  # Distance differences in meters
+        distance_diffs = time_diffs * self.speed_of_sound  # Distance differences in meters
 
         # Check geometry quality
         geometry_score = self._evaluate_geometry(positions_m)
@@ -157,9 +153,7 @@ class TrilaterationEngine:
 
         # Solve for position using least squares
         try:
-            source_position, residual = self._solve_position(
-                positions_m, distance_diffs
-            )
+            source_position, residual = self._solve_position(positions_m, distance_diffs)
         except Exception:
             logging.getLogger(__name__).exception("[Trilateration] Solver failed")
             return None
@@ -172,9 +166,7 @@ class TrilaterationEngine:
         event_type = self._classify_event(time_window, positions_m, detections)
 
         # Calculate overall confidence
-        confidence = self._calculate_confidence(
-            detections, geometry_score, residual, time_window
-        )
+        confidence = self._calculate_confidence(detections, geometry_score, residual, time_window)
 
         result = TriangulationResult(
             timestamp=float(np.mean(timestamps)),
@@ -517,8 +509,10 @@ class TrilaterationServer:
 
         lg = logging.getLogger(__name__)
         lg.info("[TrilaterationServer] Server started")
+        max_distance = self.time_window * self.engine.speed_of_sound / 1000
         lg.info(
-            f"  Time window: {self.time_window}s (allows events up to ~{self.time_window * self.engine.speed_of_sound / 1000:.1f}km away)"
+            f"  Time window: {self.time_window}s "
+            f"(allows events up to ~{max_distance:.1f}km away)"
         )
         lg.info(f"  Min nodes: {self.min_nodes}")
         lg.info(f"  Speed of sound: {self.engine.speed_of_sound} m/s")
@@ -527,17 +521,13 @@ class TrilaterationServer:
         """Callback when connected."""
         if rc == 0:
             self.connected = True
-            logging.getLogger(__name__).info(
-                "[TrilaterationServer] Connected to MQTT broker"
-            )
+            logging.getLogger(__name__).info("[TrilaterationServer] Connected to MQTT broker")
 
             # Subscribe to all detection topics
             self.client.subscribe("gunshot/detections", qos=1)
             self.client.subscribe("gunshot/+/detections", qos=1)
 
-            logging.getLogger(__name__).info(
-                "[TrilaterationServer] Subscribed to detection topics"
-            )
+            logging.getLogger(__name__).info("[TrilaterationServer] Subscribed to detection topics")
         else:
             logging.getLogger(__name__).error(
                 f"[TrilaterationServer] Connection failed with code {rc}"
@@ -560,15 +550,11 @@ class TrilaterationServer:
             )
 
         except Exception:
-            logging.getLogger(__name__).exception(
-                "[TrilaterationServer] Error processing message"
-            )
+            logging.getLogger(__name__).exception("[TrilaterationServer] Error processing message")
 
     def _processing_loop(self):
         """Background loop to process detections."""
-        logging.getLogger(__name__).info(
-            "[TrilaterationServer] Processing loop started"
-        )
+        logging.getLogger(__name__).info("[TrilaterationServer] Processing loop started")
 
         while self.running:
             try:
@@ -647,13 +633,9 @@ class TrilaterationServer:
         Process a group of detections through trilateration.
         """
         lg = logging.getLogger(__name__)
-        lg.info(
-            f"\n[TrilaterationServer] Processing group of {len(detections)} detections:"
-        )
+        lg.info(f"\n[TrilaterationServer] Processing group of {len(detections)} detections:")
         for d in detections:
-            lg.info(
-                f"  - {d.node_id}: {d.timestamp:.6f}s ({d.latitude:.4f}, {d.longitude:.4f})"
-            )
+            lg.info(f"  - {d.node_id}: {d.timestamp:.6f}s ({d.latitude:.4f}, {d.longitude:.4f})")
 
         # Select best nodes if we have too many
         if len(detections) > self.max_nodes:
@@ -676,13 +658,9 @@ class TrilaterationServer:
             lg.info(
                 f"Location: ({result.latitude:.6f}, {result.longitude:.6f}, {result.altitude:.1f}m)"
             )
-            lg.info(
-                f"Timestamp: {datetime.fromtimestamp(result.timestamp).isoformat()}"
-            )
+            lg.info(f"Timestamp: {datetime.fromtimestamp(result.timestamp).isoformat()}")
             lg.info(f"Confidence: {result.confidence:.2%}")
-            lg.info(
-                f"Nodes: {result.num_nodes} ({', '.join(result.contributing_nodes)})"
-            )
+            lg.info(f"Nodes: {result.num_nodes} ({', '.join(result.contributing_nodes)})")
             lg.info(f"Time Window: {result.time_window:.3f}s")
             lg.info(f"Geometry Score: {result.geometry_score:.2f}")
             lg.info(f"Residual Error: {result.residual_error:.1f}m")
@@ -697,8 +675,7 @@ class TrilaterationServer:
                 self.detection_buffer = [
                     d
                     for d in self.detection_buffer
-                    if d.node_id not in node_ids
-                    or abs(d.timestamp - result.timestamp) > 1.0
+                    if d.node_id not in node_ids or abs(d.timestamp - result.timestamp) > 1.0
                 ]
         else:
             self.stats["events_failed"] += 1
@@ -727,9 +704,7 @@ class TrilaterationServer:
         payload = json.dumps(result.to_dict())
 
         self.client.publish(topic, payload, qos=1)
-        logging.getLogger(__name__).info(
-            f"[TrilaterationServer] Published result to {topic}"
-        )
+        logging.getLogger(__name__).info(f"[TrilaterationServer] Published result to {topic}")
 
     def get_stats(self) -> dict:
         """Get server statistics."""
@@ -757,18 +732,14 @@ class TrilaterationServer:
         logging.getLogger(__name__).info(
             f"  Events trilaterated: {self.stats['events_trilaterated']}"
         )
-        logging.getLogger(__name__).info(
-            f"  Events failed: {self.stats['events_failed']}"
-        )
+        logging.getLogger(__name__).info(f"  Events failed: {self.stats['events_failed']}")
 
 
 def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Trilateration Server for Gunshot Detection"
-    )
+    parser = argparse.ArgumentParser(description="Trilateration Server for Gunshot Detection")
     parser.add_argument("--broker", default="localhost", help="MQTT broker address")
     parser.add_argument("--port", type=int, default=1883, help="MQTT broker port")
     parser.add_argument("--username", help="MQTT username")
@@ -785,9 +756,7 @@ def main():
         default=3,
         help="Minimum nodes required for trilateration",
     )
-    parser.add_argument(
-        "--max-nodes", type=int, default=10, help="Maximum nodes to use"
-    )
+    parser.add_argument("--max-nodes", type=int, default=10, help="Maximum nodes to use")
     parser.add_argument(
         "--speed-of-sound",
         type=float,

@@ -58,18 +58,14 @@ def parse_setup_py(setup_path: Path) -> Dict[str, List[str]]:
                     # Extract extras_require
                     elif keyword.arg == "extras_require":
                         if isinstance(keyword.value, ast.Dict):
-                            for key, value in zip(
-                                keyword.value.keys, keyword.value.values
-                            ):
+                            for key, value in zip(keyword.value.keys, keyword.value.values):
                                 if isinstance(key, ast.Constant):
                                     extra_name = key.value
                                     if extra_name in dependencies:
                                         if isinstance(value, ast.List):
                                             for item in value.elts:
                                                 if isinstance(item, ast.Constant):
-                                                    dependencies[extra_name].append(
-                                                        item.value
-                                                    )
+                                                    dependencies[extra_name].append(item.value)
 
     return dependencies
 
@@ -96,7 +92,7 @@ def write_requirements_file(path: Path, content: str, check_mode: bool = False) 
         existing_content = path.read_text()
         if existing_content != content:
             print(f"[FAIL] {path.name} is out of sync with setup.py", file=sys.stderr)
-            print(f"       Run: python scripts/update_requirements.py", file=sys.stderr)
+            print("       Run: python scripts/update_requirements.py", file=sys.stderr)
             return False
 
         print(f"[OK] {path.name} is in sync")
@@ -108,9 +104,7 @@ def write_requirements_file(path: Path, content: str, check_mode: bool = False) 
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate requirements files from setup.py"
-    )
+    parser = argparse.ArgumentParser(description="Generate requirements files from setup.py")
     parser.add_argument(
         "--check",
         action="store_true",
@@ -143,15 +137,11 @@ def main():
         "requirements.txt": generate_requirements_content(deps["install_requires"]),
         "requirements-dev.txt": generate_requirements_content(deps["dev"]),
         "requirements-sensors.txt": generate_requirements_content(deps["sensors"]),
-        "requirements-meshtastic.txt": generate_requirements_content(
-            deps["meshtastic"]
-        ),
+        "requirements-meshtastic.txt": generate_requirements_content(deps["meshtastic"]),
     }
 
     # Generate requirements-all.txt (everything combined)
-    all_deps = (
-        deps["install_requires"] + deps["dev"] + deps["sensors"] + deps["meshtastic"]
-    )
+    all_deps = deps["install_requires"] + deps["dev"] + deps["sensors"] + deps["meshtastic"]
     # Remove duplicates while preserving order
     seen = set()
     all_deps_unique = []
@@ -160,9 +150,7 @@ def main():
             seen.add(dep)
             all_deps_unique.append(dep)
 
-    requirements_files["requirements-all.txt"] = generate_requirements_content(
-        all_deps_unique
-    )
+    requirements_files["requirements-all.txt"] = generate_requirements_content(all_deps_unique)
 
     # Output mode
     if args.stdout:
@@ -188,9 +176,7 @@ def main():
             print("\n[FAIL] Some requirements files are out of sync", file=sys.stderr)
             sys.exit(1)
     else:
-        print(
-            f"\n[SUCCESS] Successfully generated {len(requirements_files)} requirements files"
-        )
+        print(f"\n[SUCCESS] Successfully generated {len(requirements_files)} requirements files")
         print("\nNext steps:")
         print("  1. Review the generated files")
         print("  2. Commit both setup.py and requirements*.txt together")

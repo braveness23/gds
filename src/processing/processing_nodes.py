@@ -66,9 +66,7 @@ class HighPassFilterNode(AudioNode):
 
         # Design filter using second-order sections (more stable than ba form)
         if self.filter_type == "butterworth":
-            self.sos = signal.butter(
-                self.order, normalized_cutoff, btype="highpass", output="sos"
-            )
+            self.sos = signal.butter(self.order, normalized_cutoff, btype="highpass", output="sos")
         elif self.filter_type == "chebyshev":
             self.sos = signal.cheby1(
                 self.order,
@@ -211,9 +209,7 @@ class DCRemovalNode(AudioNode):
     def __init__(self, name: str = "DCRemoval", cutoff_freq: float = 5.0):
         super().__init__(name)
         self.cutoff_freq = cutoff_freq
-        self.hpf = HighPassFilterNode(
-            name=f"{name}_HPF", cutoff_freq=cutoff_freq, order=2
-        )
+        self.hpf = HighPassFilterNode(name=f"{name}_HPF", cutoff_freq=cutoff_freq, order=2)
 
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Remove DC offset."""

@@ -96,9 +96,7 @@ class MQTTOutputNode:
         self.client = mqtt.Client(client_id=f"{self.node_id}_{int(time.time())}")
 
         # Increase inflight message limit for high-rate detections
-        self.client.max_inflight_messages_set(
-            200
-        )  # Default is 20, increase for burst events
+        self.client.max_inflight_messages_set(200)  # Default is 20, increase for burst events
         self.client.max_queued_messages_set(1000)  # Queue more messages in memory
 
         # Set callbacks
@@ -132,9 +130,7 @@ class MQTTOutputNode:
                     self.logger.info("TLS enabled with system CA verification")
                     self.client.tls_set()
             except (FileNotFoundError, IOError, OSError, ValueError, ssl.SSLError):
-                self.logger.exception(
-                    "Failed to configure TLS, attempting insecure fallback"
-                )
+                self.logger.exception("Failed to configure TLS, attempting insecure fallback")
                 # Fallback: accept self-signed to avoid blocking connectivity
                 try:
                     self.client.tls_set(cert_reqs=ssl.CERT_NONE)
@@ -306,8 +302,7 @@ class MQTTOutputNode:
                         # Conversion to native type failed; log at debug
                         # level and fall back to str()
                         self.logger.debug(
-                            "_json_default: failed to convert object via "
-                            ".item(): %s",
+                            "_json_default: failed to convert object via " ".item(): %s",
                             e,
                             exc_info=True,
                         )
@@ -337,9 +332,7 @@ class MQTTOutputNode:
             "node_id": self.node_id,
             "timestamp": time.time(),
             "status": status,
-            "uptime": time.time() - self.start_time
-            if hasattr(self, "start_time")
-            else 0,
+            "uptime": time.time() - self.start_time if hasattr(self, "start_time") else 0,
         }
 
         topic = f"gunshot/{self.node_id}/status"

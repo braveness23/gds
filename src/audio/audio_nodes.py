@@ -152,9 +152,7 @@ class ALSASourceNode(AudioSourceNode):
         try:
             from ctypes import CFUNCTYPE, c_char_p, c_int, cdll
 
-            ERROR_HANDLER_FUNC = CFUNCTYPE(
-                None, c_char_p, c_int, c_char_p, c_int, c_char_p
-            )
+            ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
 
             def py_error_handler(filename, line, function, err, fmt):
                 pass  # Suppress all ALSA error messages
@@ -213,26 +211,22 @@ class ALSASourceNode(AudioSourceNode):
                                     start = header.find("[")
                                     end = header.find("]")
                                     if start != -1 and end != -1:
-                                        card_id = header[start + 1:end].strip()
+                                        card_id = header[start + 1 : end].strip()
                                         card_name = card_id
                                         break
 
                     if card_name:
                         for i in range(self.pa.get_device_count()):
                             info = self.pa.get_device_info_by_index(i)
-                            if card_name in info["name"] or card_name.replace(
-                                "_", ""
-                            ) in info["name"].replace("_", ""):
+                            if card_name in info["name"] or card_name.replace("_", "") in info[
+                                "name"
+                            ].replace("_", ""):
                                 device_index = i
-                                self.logger.info(
-                                    f"Found device by card id match: {info['name']}"
-                                )
+                                self.logger.info(f"Found device by card id match: {info['name']}")
                                 break
                 except (IOError, OSError, ValueError, IndexError) as e:
                     # Ignore parsing errors but log for diagnostics
-                    self.logger.debug(
-                        "Failed parsing /proc/asound/cards: %s", e, exc_info=True
-                    )
+                    self.logger.debug("Failed parsing /proc/asound/cards: %s", e, exc_info=True)
 
             if device_index is None:
                 self.logger.warning(f"Device '{self.device}' not found, using default")

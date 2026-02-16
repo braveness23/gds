@@ -29,8 +29,6 @@ def test_mqtt_output_event_bus_disconnect(monkeypatch):
 def test_mqtt_output_publish_invalid_topic(monkeypatch):
     node = MQTTOutputNode(broker="localhost")
     node.connected = True
-    node.client = type(
-        "C", (), {"publish": lambda *a, **k: type("R", (), {"rc": 1})()}
-    )()
+    node.client = type("C", (), {"publish": lambda *a, **k: type("R", (), {"rc": 1})()})()
     node._publish("", {"msg": "test"})
     # Should not raise
