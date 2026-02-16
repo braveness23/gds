@@ -2,12 +2,7 @@
 # To update: python scripts/update_requirements.py
 # To modify dependencies: edit setup.py
 
-numpy>=1.21.0,<2.0
-scipy>=1.7.0,<2.0
-aubio>=0.4.9
-pyaudio>=0.2.11
-soundfile~=0.10.3
-PyYAML~=5.4
-paho-mqtt~=1.6.1
-psutil~=5.8.0
-ntplib~=0.3.4
+gps>=3.19
+adafruit-circuitpython-bme280>=2.6.0
+adafruit-circuitpython-dht>=3.7.0
+adafruit-blinka>=8.0.0
