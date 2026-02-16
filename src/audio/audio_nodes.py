@@ -68,6 +68,8 @@ class AudioNode(ABC):
             try:
                 output(buffer)
             except Exception as e:
+                # Intentionally broad: isolate callback failures to prevent one bad output
+                # from crashing the audio pipeline. Still excludes system exits.
                 logging.error(f"[{self.name}] Error in output callback: {e}")
 
     @abstractmethod
@@ -160,7 +162,7 @@ class ALSASourceNode(AudioSourceNode):
             c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
             asound = cdll.LoadLibrary("libasound.so.2")
             asound.snd_lib_error_set_handler(c_error_handler)
-        except Exception as e:
+        except (OSError, AttributeError, TypeError) as e:
             # Not critical; log at debug level and continue
             self.logger.debug("Failed to set ALSA error handler: %s", e, exc_info=True)
 
@@ -226,7 +228,7 @@ class ALSASourceNode(AudioSourceNode):
                                     f"Found device by card id match: {info['name']}"
                                 )
                                 break
-                except Exception as e:
+                except (IOError, OSError, ValueError, IndexError) as e:
                     # Ignore parsing errors but log for diagnostics
                     self.logger.debug(
                         "Failed parsing /proc/asound/cards: %s", e, exc_info=True
@@ -251,7 +253,7 @@ class ALSASourceNode(AudioSourceNode):
                 f"Started ALSA capture - {self.sample_rate}Hz, {self.channels}ch, {self.buffer_size} samples"
             )
 
-        except Exception as e:
+        except (IOError, OSError, ValueError) as e:
             self.logger.error(f"Failed to start audio stream: {e}")
             self.running = False
             raise
@@ -301,6 +303,8 @@ class ALSASourceNode(AudioSourceNode):
             self.emit(buffer)
 
         except Exception as e:
+            # Intentionally broad: audio callback is critical real-time code.
+            # Must never let exceptions escape or audio stream crashes. Excludes system exits.
             self.logger.error(f"Error in audio callback: {e}")
 
         return (None, pyaudio.paContinue)
@@ -367,7 +371,7 @@ class FileSourceNode(AudioSourceNode):
                 f"({self.sample_rate}Hz, {self.channels}ch)"
             )
 
-        except Exception as e:
+        except (IOError, OSError, RuntimeError, ValueError) as e:
             logging.error(f"[{self.name}] Failed to open file: {e}")
             raise
 
@@ -398,7 +402,7 @@ class FileSourceNode(AudioSourceNode):
                 # Simulate realtime if requested
                 if self.realtime:
                     time.sleep(self.buffer_size / self.sample_rate)
-            except Exception as e:
+            except (IOError, OSError, ValueError, RuntimeError) as e:
                 logging.error(f"[{self.name}] Error reading file: {e}")
                 break
         self.running = False

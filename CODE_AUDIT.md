@@ -264,27 +264,26 @@ logger.debug("Failed: %s", error)
 
 ## 🔧 3. BEST PRACTICE VIOLATIONS
 
-### 3.1 Broad Exception Catching
+### 3.1 Broad Exception Catching — RESOLVED ✅
 **SEVERITY: MEDIUM** 🟡
-**Found in:** 15+ locations
+**Status:** RESOLVED - All 49 instances in core source files fixed
 
-```python
-except Exception as e:  # ❌ Too broad - catches EVERYTHING
-    logger.error(f"Failed: {e}")
-```
+**What was fixed:**
+- Narrowed overly broad `except Exception` to specific exception types based on context
+- Documented intentionally broad exceptions (callbacks, abstract methods, message handlers)
+- Fixed across 7 core source files
 
-**Should be:**
-```python
-except (IOError, OSError, ValueError) as e:  # ✅ Specific exceptions
-    logger.error(f"Failed: {e}")
-```
+**Files fixed:**
+- ✅ [src/config/config.py](src/config/config.py) - 3 instances (narrowed all)
+- ✅ [src/core/event_bus.py](src/core/event_bus.py) - 3 instances (narrowed 1, documented 2 for callbacks)
+- ✅ [src/audio/audio_nodes.py](src/audio/audio_nodes.py) - 7 instances (narrowed 5, documented 2 for callbacks/real-time)
+- ✅ [src/sensors/base.py](src/sensors/base.py) - 4 instances (all documented for abstract methods/callbacks)
+- ✅ [src/output/mqtt_output.py](src/output/mqtt_output.py) - 9 instances (narrowed 8, documented 1 for message handling)
+- ✅ [src/sensors/gps.py](src/sensors/gps.py) - 18 instances (all narrowed)
+- ✅ [src/sensors/environmental.py](src/sensors/environmental.py) - 5 instances (all narrowed)
+- ✅ [src/detection/detection_nodes.py](src/detection/detection_nodes.py) - Fixed in commit 1b08273
 
-**Locations:**
-- [src/config/config.py:23](src/config/config.py#L23) - Config loading
-- [src/config/config.py:187](src/config/config.py#L187) - Config parsing
-- [src/audio/audio_nodes.py:163](src/audio/audio_nodes.py#L163) - Audio stream
-- [src/core/event_bus.py:133](src/core/event_bus.py#L133) - Event callbacks
-- Many more...
+**Note:** Test files, tool scripts, and setup.py still have broad exceptions, which is acceptable for those contexts.
 
 ---
 

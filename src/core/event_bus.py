@@ -130,7 +130,7 @@ class EventBus:
                 self.logger.debug(
                     f"[{self.name}] Published event: type={evt_type} source={src} buffer_index={buf_idx} timestamp={getattr(event, 'timestamp', None)}"
                 )
-            except Exception as e:
+            except (AttributeError, KeyError, TypeError) as e:
                 # Log failures when formatting the debug message, but do not interrupt publishing
                 self.logger.debug(
                     f"[{self.name}] Failed to format published event debug info: %s",
@@ -179,6 +179,8 @@ class EventBus:
                 try:
                     callback(event)
                 except Exception as e:
+                    # Intentionally broad: isolate callback failures to prevent one bad subscriber
+                    # from crashing the event bus. Still excludes system exits (KeyboardInterrupt, etc.)
                     self.logger.error(
                         f"[{self.name}] Error in subscriber callback: {e}"
                     )
@@ -188,6 +190,8 @@ class EventBus:
                 try:
                     callback(event)
                 except Exception as e:
+                    # Intentionally broad: isolate callback failures to prevent one bad subscriber
+                    # from crashing the event bus. Still excludes system exits (KeyboardInterrupt, etc.)
                     self.logger.error(
                         f"[{self.name}] Error in all-events callback: {e}"
                     )

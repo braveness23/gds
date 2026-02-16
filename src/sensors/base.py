@@ -50,6 +50,8 @@ class BaseSensor(ABC, Generic[T]):
                 with self.data_lock:
                     self.current_data = initial_data
         except Exception as e:
+            # Intentionally broad: _connect() and _read_sensor() are abstract methods
+            # implemented by subclasses. Need to catch any exception type they may raise.
             self.connected = False
             self.logger.error(f"Connection failed: {e}")
             raise
@@ -149,6 +151,7 @@ class BaseSensor(ABC, Generic[T]):
         try:
             self._disconnect()
         except Exception:
+            # Intentionally broad: _disconnect() is abstract method implemented by subclasses
             self.logger.exception("Disconnect error")
 
         self.connected = False
@@ -192,6 +195,7 @@ class BaseSensor(ABC, Generic[T]):
                     self.stats["read_errors"] += 1
 
             except Exception:
+                # Intentionally broad: _read_sensor() is abstract method implemented by subclasses
                 self.stats["read_errors"] += 1
                 self.logger.exception("Read error")
 
@@ -207,6 +211,8 @@ class BaseSensor(ABC, Generic[T]):
                 try:
                     callback(data)
                 except Exception:
+                    # Intentionally broad: isolate callback failures to prevent one bad callback
+                    # from crashing the sensor. Still excludes system exits.
                     self.logger.exception("Callback error")
 
     def get_data(self) -> Optional[T]:

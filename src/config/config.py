@@ -20,7 +20,14 @@ class Config:
         if config_path:
             try:
                 self.load(config_path)
-            except Exception as e:
+            except (
+                FileNotFoundError,
+                ValueError,
+                yaml.YAMLError,
+                json.JSONDecodeError,
+                IOError,
+                OSError,
+            ) as e:
                 logger.warning(f"Failed to load config from {config_path}: {e}")
                 logger.info("Using default configuration")
 
@@ -156,7 +163,7 @@ class Config:
         except (yaml.YAMLError, json.JSONDecodeError) as e:
             logger.error(f"Error parsing config file: {e}")
             raise
-        except Exception as e:
+        except (IOError, OSError) as e:
             logger.error(f"Error loading config: {e}")
             raise
 
@@ -175,8 +182,9 @@ class Config:
 
             logger.info(f"Saved configuration to {path}")
 
-        except Exception as e:
+        except (IOError, OSError, PermissionError) as e:
             logger.error(f"Error saving config: {e}")
+            raise  # Don't swallow - let caller handle
 
     def _deep_merge(self, base: Dict, update: Dict) -> Dict:
         """Deep merge dictionaries recursively."""

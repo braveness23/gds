@@ -91,7 +91,7 @@ class GPSReader(BaseGPSDevice[GPSData]):
                 host=self.host, port=self.port, mode=gps.WATCH_ENABLE
             )
             self.logger.info("Connected to gpsd")
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError, AttributeError) as e:
             self.logger.error(f"Failed to connect to gpsd: {e}")
             self.logger.info("  Make sure gpsd is running: sudo systemctl status gpsd")
             raise
@@ -137,7 +137,7 @@ class GPSReader(BaseGPSDevice[GPSData]):
             self._reconnect()
             return None
 
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError, TypeError) as e:
             self.logger.error(f"Error reading GPS: {e}")
             return None
 
@@ -198,7 +198,7 @@ class GPSReader(BaseGPSDevice[GPSData]):
                 track=track,
             )
 
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError, TypeError) as e:
             self.logger.error(f"Error parsing TPV report: {e}")
             return None
 
@@ -208,7 +208,7 @@ class GPSReader(BaseGPSDevice[GPSData]):
             self.connected = False
             time.sleep(2.0)  # Wait before reconnect
             self.connect()
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError, AttributeError) as e:
             self.logger.error(f"Reconnect failed: {e}")
 
     # Alias for GPS-specific naming
@@ -324,7 +324,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
             raise ImportError("pyserial and pynmea2 are required for SerialGPSReader")
         try:
             self.serial = serial.Serial(self.device, self.baudrate, timeout=1)
-        except Exception as e:
+        except (OSError, IOError, ValueError) as e:
             self.logger.error(f"Failed to open serial device {self.device}: {e}")
             raise
 
@@ -336,7 +336,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
                 and getattr(self.serial, "is_open", True)
             ):
                 self.serial.close()
-        except Exception as e:
+        except (OSError, IOError, AttributeError) as e:
             self.logger.error(f"Error closing serial device: {e}")
 
     def _read_sensor(self):
@@ -350,7 +350,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
                 return None
             try:
                 msg = pynmea2.parse(line)
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError) as e:
                 self.logger.debug("Failed to parse NMEA line: %s", e, exc_info=True)
                 return None
 
@@ -359,7 +359,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
             lon = getattr(msg, "longitude", None)
             try:
                 alt = float(getattr(msg, "altitude", 0.0))
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError) as e:
                 self.logger.debug(
                     "Failed to parse altitude from NMEA msg: %s", e, exc_info=True
                 )
@@ -368,14 +368,14 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
                 fix_quality = int(
                     getattr(msg, "gps_qual", getattr(msg, "gps_quality", 0))
                 )
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError) as e:
                 self.logger.debug(
                     "Failed to parse fix quality from NMEA msg: %s", e, exc_info=True
                 )
                 fix_quality = 0
             try:
                 sats = int(getattr(msg, "num_sats", getattr(msg, "num_sv", 0)))
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError) as e:
                 self.logger.debug(
                     "Failed to parse satellite count from NMEA msg: %s",
                     e,
@@ -384,14 +384,14 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
                 sats = 0
             try:
                 hdop = float(getattr(msg, "horizontal_dil", getattr(msg, "hdop", 99.9)))
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError) as e:
                 self.logger.debug(
                     "Failed to parse HDOP from NMEA msg: %s", e, exc_info=True
                 )
                 hdop = 99.9
             try:
                 spd = float(getattr(msg, "spd_over_grnd", 0.0))
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError) as e:
                 self.logger.debug(
                     "Failed to parse speed from NMEA msg: %s", e, exc_info=True
                 )
@@ -399,7 +399,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
             speed = spd * 0.514444  # knots to m/s
             try:
                 track = float(getattr(msg, "true_course", 0.0))
-            except Exception as e:
+            except (AttributeError, ValueError, TypeError) as e:
                 self.logger.debug(
                     "Failed to parse track from NMEA msg: %s", e, exc_info=True
                 )
@@ -419,7 +419,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
                             speed=speed,
                             track=track,
                         )
-                    except Exception as e:
+                    except (AttributeError, ValueError, TypeError) as e:
                         self.logger.debug(
                             "Failed to construct GPSData from NMEA msg: %s",
                             e,
@@ -427,7 +427,7 @@ class SerialGPSReader(BaseGPSDevice[GPSData]):
                         )
                         return None
             return None
-        except Exception as e:
+        except (OSError, IOError, UnicodeDecodeError) as e:
             self.logger.error(f"Read error: {e}")
             return None
 
@@ -451,7 +451,7 @@ def create_gps_reader(config: dict, event_bus=None):
         gps_available = True
         try:
             pass  # type: ignore
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError) as e:
             logger.debug("gps module not available: %s", e, exc_info=True)
             gps_available = False
 
@@ -467,7 +467,7 @@ def create_gps_reader(config: dict, event_bus=None):
                         update_interval=gps_config.get("update_interval", 1.0),
                         event_bus=event_bus,
                     )
-                except Exception as e:
+                except (OSError, IOError, ValueError, ImportError) as e:
                     logger.error(f"Failed to initialize SerialGPSReader: {e}")
                     # fallthrough to gpsd
             else:
@@ -486,7 +486,13 @@ def create_gps_reader(config: dict, event_bus=None):
                     update_interval=gps_config.get("update_interval", 1.0),
                     event_bus=event_bus,
                 )
-            except Exception as e:
+            except (
+                OSError,
+                ConnectionError,
+                TimeoutError,
+                AttributeError,
+                ImportError,
+            ) as e:
                 logger.error(f"Failed to initialize GPSReader (gpsd): {e}")
 
         # If we get here, try serial reader if available
@@ -498,7 +504,7 @@ def create_gps_reader(config: dict, event_bus=None):
                     update_interval=gps_config.get("update_interval", 1.0),
                     event_bus=event_bus,
                 )
-            except Exception as e:
+            except (OSError, IOError, ValueError, ImportError) as e:
                 logger.error(f"Failed to initialize SerialGPSReader: {e}")
 
         if not gps_available and not (serial_dev and serial_available):

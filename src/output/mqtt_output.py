@@ -131,7 +131,7 @@ class MQTTOutputNode:
                     # Default: use system CA store and require verification
                     self.logger.info("TLS enabled with system CA verification")
                     self.client.tls_set()
-            except Exception:
+            except (FileNotFoundError, IOError, OSError, ValueError, ssl.SSLError):
                 self.logger.exception(
                     "Failed to configure TLS, attempting insecure fallback"
                 )
@@ -139,7 +139,7 @@ class MQTTOutputNode:
                 try:
                     self.client.tls_set(cert_reqs=ssl.CERT_NONE)
                     self.client.tls_insecure_set(True)
-                except Exception:
+                except (FileNotFoundError, IOError, OSError, ValueError, ssl.SSLError):
                     self.logger.exception("TLS insecure fallback failed, raising")
                     # If even fallback fails, raise to let reconnect logic handle it
                     raise
@@ -158,7 +158,7 @@ class MQTTOutputNode:
 
             self.logger.info(f"MQTT output initialized for node '{self.node_id}'")
 
-        except Exception as e:
+        except (OSError, IOError, ValueError) as e:
             self.logger.error(f"Connection failed: {e}")
             self._start_reconnect_thread()
 
@@ -203,7 +203,7 @@ class MQTTOutputNode:
                 self.logger.info("Attempting to reconnect...")
                 self.client.reconnect()
                 time.sleep(5)  # Wait between attempts
-            except Exception as e:
+            except (OSError, IOError, ConnectionError) as e:
                 self.logger.error(f"Reconnect failed: {e}")
                 time.sleep(5)
 
@@ -275,7 +275,7 @@ class MQTTOutputNode:
                         "fix_quality": position.fix_quality,
                         "satellites": position.satellites,
                     }
-            except Exception as e:
+            except (AttributeError, RuntimeError, IOError) as e:
                 self.logger.warning(f"Failed to get GPS position: {e}")
 
         # Add environmental data if available
@@ -288,7 +288,7 @@ class MQTTOutputNode:
                         "humidity": env_data.humidity,
                         "pressure": env_data.pressure,
                     }
-            except Exception as e:
+            except (AttributeError, RuntimeError, IOError) as e:
                 self.logger.warning(f"Failed to get environmental data: {e}")
 
         return message
@@ -302,7 +302,7 @@ class MQTTOutputNode:
                 if hasattr(o, "item"):
                     try:
                         return o.item()
-                    except Exception as e:
+                    except (AttributeError, TypeError, ValueError) as e:
                         # Conversion to native type failed; log at debug level and fall back to str()
                         self.logger.debug(
                             "_json_default: failed to convert object via .item(): %s",
@@ -325,7 +325,7 @@ class MQTTOutputNode:
             if result.rc == 1:  # MQTT_ERR_NOMEM - queue full
                 self.logger.warning("Message queue full! Messages being dropped.")
 
-        except Exception as e:
+        except (TypeError, ValueError, OSError, IOError) as e:
             self.messages_failed += 1
             self.logger.error(f"Error publishing to {topic}: {e}")
 
@@ -466,6 +466,8 @@ class MQTTFleetCoordinator:
                 self._handle_status(payload)
 
         except Exception as e:
+            # Intentionally broad: message handler calls various _handle_*() methods.
+            # Must isolate failures to prevent one bad message from crashing MQTT handler.
             self.logger.error(f"Error processing message: {e}")
 
     def _handle_detection(self, payload: Dict[str, Any]):

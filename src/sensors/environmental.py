@@ -149,7 +149,7 @@ class BME280Sensor(BaseSensor[EnvironmentalData]):
             self.logger.error("  Also needs: pip install adafruit-blinka")
             raise
 
-        except Exception:
+        except (IOError, OSError, ValueError, RuntimeError):
             self.logger.exception("[BME280] Failed to connect")
             self.logger.error("  Check:")
             self.logger.error("    - I2C is enabled (sudo raspi-config)")
@@ -193,7 +193,7 @@ class BME280Sensor(BaseSensor[EnvironmentalData]):
                 timestamp=time.time(),
             )
 
-        except Exception:
+        except (IOError, OSError, AttributeError, RuntimeError):
             self.logger.exception("[BME280] Error reading sensor")
             return None
 
@@ -274,7 +274,7 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
             self.logger.error("  Also needs: sudo apt-get install libgpiod2")
             raise
 
-        except Exception:
+        except (IOError, OSError, ValueError, RuntimeError):
             self.logger.exception(f"[{self.sensor_type}] Failed to connect")
             self.logger.error("  Check:")
             self.logger.error(f"    - DHT sensor connected to GPIO {self.gpio_pin}")
@@ -288,7 +288,7 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
             try:
                 self.sensor.exit()
                 self.logger.info(f"[{self.sensor_type}] GPIO cleaned up")
-            except Exception:
+            except (IOError, OSError, AttributeError):
                 self.logger.exception(f"[{self.sensor_type}] Error cleaning up GPIO")
 
     def _read_sensor(self) -> Optional[EnvironmentalData]:
@@ -344,7 +344,7 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
                 self.stats["checksum_errors"] += 1
             return None
 
-        except Exception:
+        except (IOError, OSError, AttributeError, RuntimeError):
             self.logger.exception(f"[{self.sensor_type}] Error reading sensor")
             return None
 
