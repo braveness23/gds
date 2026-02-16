@@ -243,35 +243,7 @@ asound.snd_lib_error_set_handler(c_error_handler)
 
 ---
 
-### 2.3 Type Ignore Without Proper Handling
-**SEVERITY: LOW** 🟡
-**Files:**
-- [src/detection/detection_nodes.py:19](src/detection/detection_nodes.py#L19)
-- [src/sensors/gps.py:22-23](src/sensors/gps.py#L22-L23)
-
-```python
-try:
-    import aubio as _aubio  # type: ignore  # ❌ Suppresses type checking
-except Exception:  # ❌ Too broad
-    _aubio = None
-```
-
-**Issues:**
-- `# type: ignore` hides legitimate type problems
-- Bare `except Exception` catches KeyboardInterrupt, SystemExit
-- Should use specific import exceptions
-
-**Fix Required:**
-```python
-try:
-    import aubio as _aubio
-except (ImportError, ModuleNotFoundError):
-    _aubio = None
-```
-
----
-
-### 2.4 Inconsistent String Formatting
+### 2.3 Inconsistent String Formatting
 **SEVERITY: LOW** 🟡
 
 Multiple patterns used throughout codebase:
@@ -371,20 +343,6 @@ class GunshotDetectionSystem:
 
 ---
 
-### 3.4 Template Values in setup.py
-**SEVERITY: MEDIUM** 🟡
-**File:** [setup.py:18-20](setup.py#L18-L20)
-
-```python
-author="Your Name",                    # ❌ Template value
-author_email="your.email@example.com",  # ❌ Template value
-url="https://github.com/yourusername/gunshot-detection-system",  # ❌ Template
-```
-
-**Fix:** Update with actual project information
-
----
-
 ## 🏗️ 4. ARCHITECTURAL PROBLEMS
 
 ### 4.1 Event Queue Can Silently Drop Events
@@ -479,27 +437,6 @@ self.mqtt_output = MQTTOutputNode(
 
 ---
 
-### 4.4 Relative Imports Inside Functions
-**SEVERITY: MEDIUM** 🟡
-**File:** [src/sensors/base.py:182](src/sensors/base.py#L182)
-
-```python
-def _update_loop(self):
-    from core.event_bus import Event  # ❌ Import inside function
-```
-
-**Issues:**
-- Relative import (fragile, depends on execution path)
-- Import inside function (bad practice, performance hit)
-- Should be `from src.core.event_bus import Event`
-
-**Also in:** [src/sensors/gps.py:566](src/sensors/gps.py#L566)
-```python
-from sensors.static_gps import StaticGPSDevice  # ❌ Should be src.sensors.static_gps
-```
-
----
-
 ## 📝 5. ERROR HANDLING ISSUES
 
 ### 5.1 Exception Swallowing Without Recovery
@@ -526,27 +463,6 @@ def save(self, path: Optional[str] = None):
 except Exception as e:
     logger.error(f"Error saving config: {e}")
     raise  # ✅ Let caller handle
-```
-
----
-
-### 5.2 Logging Spam at Wrong Levels
-**SEVERITY: LOW** 🟡
-**File:** [src/detection/detection_nodes.py:97-99](src/detection/detection_nodes.py#L97-L99)
-
-```python
-# ❌ INFO level for EVERY buffer (46+ messages/second at 48kHz!)
-self.logger.info(
-    f"Received buffer {buffer.buffer_index} (min={buffer.samples.min():.4f}, ...)"
-)
-```
-
-**Impact:** Log spam makes it hard to see real issues
-
-**Fix:** Log periodically or at DEBUG level
-```python
-if buffer.buffer_index % 1000 == 0:  # Every ~20 seconds
-    self.logger.info(f"Processed {buffer.buffer_index} buffers")
 ```
 
 ---
@@ -640,13 +556,13 @@ if self.device != "default":
 | Category | Critical | High | Medium | Low | Total |
 |----------|----------|------|--------|-----|-------|
 | Security Issues | 2 | 2 | 0 | 0 | **4** |
-| Code Smells | 0 | 0 | 3 | 1 | **4** |
-| Best Practices | 0 | 0 | 4 | 0 | **4** |
-| Architecture | 0 | 0 | 4 | 0 | **4** |
-| Error Handling | 0 | 0 | 2 | 1 | **3** |
+| Code Smells | 0 | 0 | 2 | 1 | **3** |
+| Best Practices | 0 | 0 | 3 | 0 | **3** |
+| Architecture | 0 | 0 | 2 | 1 | **3** |
+| Error Handling | 0 | 0 | 1 | 0 | **1** |
 | Config/Dependencies | 0 | 0 | 2 | 1 | **3** |
 | Validation | 0 | 0 | 2 | 0 | **2** |
-| **TOTAL** | **2** | **2** | **19** | **3** | **24** |
+| **TOTAL** | **2** | **2** | **12** | **3** | **19** |
 
 ---
 
@@ -678,10 +594,6 @@ if self.device != "default":
    - Stop swallowing exceptions in config.save()
    - Re-raise after logging where appropriate
 
-5. **Fix relative imports**
-   - Move imports to top of files
-   - Use absolute imports: `from src.module import ...`
-
 ### 🟡 MEDIUM (Fix This Month)
 
 6. **Add input validation**
@@ -694,19 +606,10 @@ if self.device != "default":
    - Implement backpressure or priority
    - Alert on high drop rates
 
-8. **Update setup.py**
-   - Fill in template author/email/url
-   - Clarify optional vs required dependencies
-   - Version pinning with upper bounds
-
-9. **Add type hints**
+8. **Add type hints**
    - GPS factory function
    - MQTT message builders
    - Callback functions
-
-10. **Fix logging levels**
-    - Move buffer stats to DEBUG or periodic INFO
-    - Reduce log spam (46+ msgs/sec)
 
 ---
 
