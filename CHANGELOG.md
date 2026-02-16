@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Roadmap
 
-See [FEATURES.md](FEATURES.md) and [FUTURE_FEATURES.md](FUTURE_FEATURES.md) for detailed status and planned features.
+See [FEATURES.md](docs/FEATURES.md) and [FUTURE_FEATURES.md](docs/FUTURE_FEATURES.md) for detailed status and planned features.
 
 **Near-term (v0.2.0):**
 - Platform abstraction (Windows/macOS support)

@@ -28,7 +28,7 @@
 - ✅ Example configurations with detailed comments
 
 ### Build & Deployment Tools
-- ✅ Automated installation script (install.sh)
+- ✅ Automated installation script (scripts/install.sh)
 - ✅ Makefile with common commands
 - ✅ Python package setup (setup.py)
 - ✅ Requirements.txt with all dependencies

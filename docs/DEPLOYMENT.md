@@ -65,7 +65,7 @@ Or manually on each Pi:
 ```bash
 git clone https://github.com/yourusername/gunshot-detection-system.git
 cd gunshot-detection-system
-sudo bash install.sh
+sudo bash scripts/install.sh
 ```
 
 #### 4. Configure Each Node
