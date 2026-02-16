@@ -82,12 +82,12 @@ output:
   # MQTT - Recommended for fleet coordination
   mqtt:
     enabled: true
-    broker: "mqtt.daveschwinn.com" # CHANGE THIS - Your MQTT broker IP
+    broker: "test.mosquitto.org" # Public test broker (use your own for production)
     port: 1883
     topic: "gunshot/detections"
     qos: 1 # 0=fast, 1=reliable, 2=guaranteed
-    username: gunshot_detector # Set if broker requires auth
-    password: Clavicle-Barge-Hull2
+    # username: your_username # Uncomment if broker requires auth
+    # password: your_password
 
   # File Logger - Always keep local logs
   file_logger:
