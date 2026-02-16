@@ -14,7 +14,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 
-from src.core.event_bus import EventType
+from src.core.event_bus import Event, EventType
 
 # Generic type for sensor data
 T = TypeVar("T")
@@ -179,8 +179,6 @@ class BaseSensor(ABC, Generic[T]):
 
                     # Publish to event bus
                     if self.event_bus and self.event_type:
-                        from core.event_bus import Event
-
                         event = Event(
                             event_type=self.event_type,
                             timestamp=time.time(),

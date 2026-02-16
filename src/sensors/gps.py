@@ -11,16 +11,17 @@ from typing import Callable, Optional
 
 from src.core.event_bus import EventType
 from src.sensors.base_gps import BaseGPSDevice
+from src.sensors.static_gps import StaticGPSDevice
 
 # Optional serial/NMEA parsing support
 logger = logging.getLogger(__name__)
 try:
     import pynmea2
     import serial
-except Exception as e:
+except (ImportError, ModuleNotFoundError) as e:
     logger.debug("serial/pynmea2 not available: %s", e, exc_info=True)
-    serial = None  # type: ignore
-    pynmea2 = None  # type: ignore
+    serial = None
+    pynmea2 = None
 
 
 @dataclass
@@ -562,7 +563,5 @@ def create_gps_reader(config: dict, event_bus=None):
     if lat == 0.0 and lon == 0.0:
         logger.warning("Using default location (0, 0)")
         logger.info("  Set location in config.yaml under 'location' section")
-
-    from sensors.static_gps import StaticGPSDevice
 
     return StaticGPSDevice(lat, lon, alt)

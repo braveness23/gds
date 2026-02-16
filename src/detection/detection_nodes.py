@@ -16,8 +16,8 @@ from src.core.event_bus import DetectionEvent, Event, EventType
 # module-level reference to None so nodes can skip detection without
 # repeatedly logging import errors.
 try:
-    import aubio as _aubio  # type: ignore
-except Exception:
+    import aubio as _aubio
+except (ImportError, ModuleNotFoundError):
     _aubio = None
 
 
@@ -94,9 +94,15 @@ class AubioOnsetNode(AudioNode):
 
     def process(self, buffer: AudioBuffer) -> Optional[AudioBuffer]:
         """Detect onsets in buffer and emit detection events."""
-        self.logger.info(
-            f"Received buffer {buffer.buffer_index} (min={buffer.samples.min():.4f}, max={buffer.samples.max():.4f}, mean={buffer.samples.mean():.4f}, std={buffer.samples.std():.4f})"
-        )
+        # Log periodically to avoid spam (every 1000 buffers ~= every 20 seconds at 48kHz)
+        if buffer.buffer_index % 1000 == 0:
+            self.logger.info(
+                f"Processed {buffer.buffer_index} buffers (latest: min={buffer.samples.min():.4f}, max={buffer.samples.max():.4f}, mean={buffer.samples.mean():.4f}, std={buffer.samples.std():.4f})"
+            )
+        else:
+            self.logger.debug(
+                f"Received buffer {buffer.buffer_index} (min={buffer.samples.min():.4f}, max={buffer.samples.max():.4f}, mean={buffer.samples.mean():.4f}, std={buffer.samples.std():.4f})"
+            )
         # Initialize detector on first buffer
         if self.onset_detector is None:
             self._init_detector(buffer.sample_rate)
