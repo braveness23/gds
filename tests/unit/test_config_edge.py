@@ -27,9 +27,7 @@ def test_invalid_types(tmp_path):
     assert isinstance(config.get("system.node_id"), list)
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="File permissions work differently on Windows"
-)
+@pytest.mark.skipif(sys.platform == "win32", reason="File permissions work differently on Windows")
 def test_permission_error(tmp_path, monkeypatch):
     file_path = tmp_path / "protected.yaml"
     file_path.write_text("system: {}")

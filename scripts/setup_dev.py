@@ -90,14 +90,12 @@ def run_command(cmd, cwd=None, check=True, capture_output=False):
     """Run a shell command."""
     try:
         if capture_output:
-            result = subprocess.run(
-                cmd, cwd=cwd, check=check, capture_output=True, text=True
-            )
+            result = subprocess.run(cmd, cwd=cwd, check=check, capture_output=True, text=True)
             return result.returncode == 0, result.stdout
         else:
             result = subprocess.run(cmd, cwd=cwd, check=check)
             return result.returncode == 0, None
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         return False, None
     except FileNotFoundError:
         return False, None
@@ -124,15 +122,13 @@ def check_python_version():
     print_info(f"Python {version.major}.{version.minor}.{version.micro}")
 
     if version < (3, 7):
-        print_error(
-            f"Python 3.7+ required, but you have {version.major}.{version.minor}"
-        )
+        print_error(f"Python 3.7+ required, but you have {version.major}.{version.minor}")
         return False
 
     if version < (3, 11):
-        print_warning(f"Python 3.11+ recommended for best compatibility")
+        print_warning("Python 3.11+ recommended for best compatibility")
 
-    print_success(f"Python version is acceptable")
+    print_success("Python version is acceptable")
     return True
 
 
@@ -205,9 +201,7 @@ def install_dependencies(project_root, plat, minimal=False):
 
     # Install main package with dev extras
     print_info("Installing package with development dependencies...")
-    success, _ = run_command(
-        [str(pip_path), "install", "-e", ".[dev]"], cwd=project_root
-    )
+    success, _ = run_command([str(pip_path), "install", "-e", ".[dev]"], cwd=project_root)
 
     if not success:
         print_error("Failed to install development dependencies")
@@ -217,9 +211,7 @@ def install_dependencies(project_root, plat, minimal=False):
 
     # Install optional sensor dependencies
     if not minimal:
-        response = input(
-            "\nInstall optional sensor dependencies (GPS, BME280, DHT)? [y/N]: "
-        )
+        response = input("\nInstall optional sensor dependencies (GPS, BME280, DHT)? [y/N]: ")
         if response.lower() in ("y", "yes"):
             print_info("Installing sensor dependencies...")
             success, _ = run_command(
@@ -240,9 +232,7 @@ def install_precommit_hooks(project_root, plat):
     venv_python = get_venv_python(project_root, plat)
 
     print_info("Installing pre-commit hooks...")
-    success, _ = run_command(
-        [str(venv_python), "-m", "pre_commit", "install"], cwd=project_root
-    )
+    success, _ = run_command([str(venv_python), "-m", "pre_commit", "install"], cwd=project_root)
 
     if success:
         print_success("Pre-commit hooks installed")
@@ -318,9 +308,7 @@ def print_system_dependencies(plat):
         print_info("On Windows:")
         print("\n  - PyAudio and Aubio will use pre-compiled wheels if available")
         print("  - GPS functionality is typically not used on Windows")
-        print(
-            "  - For audio development, consider using Windows Subsystem for Linux (WSL)"
-        )
+        print("  - For audio development, consider using Windows Subsystem for Linux (WSL)")
 
     print()
 
@@ -355,12 +343,8 @@ def print_next_steps(plat):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Set up development environment for GDS project"
-    )
-    parser.add_argument(
-        "--minimal", action="store_true", help="Skip optional dependencies"
-    )
+    parser = argparse.ArgumentParser(description="Set up development environment for GDS project")
+    parser.add_argument("--minimal", action="store_true", help="Skip optional dependencies")
     parser.add_argument(
         "--check",
         action="store_true",

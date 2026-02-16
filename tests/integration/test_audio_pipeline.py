@@ -119,9 +119,7 @@ class TestAudioPipeline:
         expected_gain = 10 ** (6.0 / 20.0)  # dB to linear
         assert abs(processed_rms / original_rms - expected_gain) < 0.1
 
-    @pytest.mark.skip(
-        reason="Highpass filter significantly attenuates impulse test signal"
-    )
+    @pytest.mark.skip(reason="Highpass filter significantly attenuates impulse test signal")
     def test_full_processing_chain(self, event_bus, impulse_audio, test_config):
         """Test complete processing chain: DC removal → Highpass → Detection."""
         detections = []

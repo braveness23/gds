@@ -13,7 +13,6 @@ Usage:
 import argparse
 import importlib.metadata
 import platform
-import subprocess
 import sys
 from pathlib import Path
 
@@ -170,12 +169,12 @@ def check_venv():
     )
 
     if in_venv:
-        print(f"  [OK]   Running in virtual environment")
+        print("  [OK]   Running in virtual environment")
         print(f"         Location: {sys.prefix}")
         return True
     else:
-        print(f"  [WARN] Not running in virtual environment")
-        print(f"         Activate venv before installing packages!")
+        print("  [WARN] Not running in virtual environment")
+        print("         Activate venv before installing packages!")
         return False
 
 
@@ -201,9 +200,7 @@ def main():
     venv_ok = check_venv()
 
     # Check core dependencies
-    core_ok = check_requirements_file(
-        project_root / "requirements.txt", "Core Dependencies"
-    )
+    core_ok = check_requirements_file(project_root / "requirements.txt", "Core Dependencies")
 
     # Check dev dependencies
     dev_ok = check_requirements_file(

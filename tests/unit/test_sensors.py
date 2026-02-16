@@ -11,8 +11,9 @@ import pytest
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from src.core.event_bus import EventBus, EventType
-from src.sensors.base import BaseSensor
+# Import after path modification
+from src.core.event_bus import EventBus, EventType  # noqa: E402
+from src.sensors.base import BaseSensor  # noqa: E402
 
 
 @dataclass
@@ -467,9 +468,7 @@ class TestSensorEventBus:
 
         event_bus.subscribe(EventType.SYSTEM, event_handler)
 
-        sensor = MockSensor(
-            update_interval=0.05, event_bus=event_bus, event_type=EventType.SYSTEM
-        )
+        sensor = MockSensor(update_interval=0.05, event_bus=event_bus, event_type=EventType.SYSTEM)
 
         sensor.start()
         time.sleep(0.2)

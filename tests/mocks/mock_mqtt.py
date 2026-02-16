@@ -134,8 +134,8 @@ class MockMQTTClient:
 
         self.connected = True
 
-        # Trigger on_connect callback asynchronously (in real paho-mqtt, this happens after connect returns)
-        # We need to delay this slightly to simulate async behavior
+        # Trigger on_connect callback asynchronously (in real paho-mqtt,
+        # this happens after connect returns). Delay slightly to simulate async.
         if self.on_connect:
             # Call the callback in a separate thread to avoid blocking
             import threading
@@ -211,9 +211,7 @@ class MockMQTTClient:
         # Return (result, mid)
         return (0, len(self.subscriptions))
 
-    def get_published_messages(
-        self, topic_filter: Optional[str] = None
-    ) -> List[MockMessage]:
+    def get_published_messages(self, topic_filter: Optional[str] = None) -> List[MockMessage]:
         """
         Get published messages, optionally filtered by topic.
 

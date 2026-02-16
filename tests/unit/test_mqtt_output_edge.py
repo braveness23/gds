@@ -14,9 +14,7 @@ def test_mqtt_connect_failure(mock_paho_mqtt):
 
     # Patch to return a client that fails on connect
     def failing_client_factory(*args, **kwargs):
-        return MockMQTTClient(
-            client_id=kwargs.get("client_id", ""), fail_on_connect=True
-        )
+        return MockMQTTClient(client_id=kwargs.get("client_id", ""), fail_on_connect=True)
 
     # Re-patch the Client factory
     fake_mqtt_client = ModuleType("paho.mqtt.client")

@@ -78,9 +78,7 @@ class EnvironmentalData:
         a = 17.27
         b = 237.7
 
-        alpha = ((a * self.temperature) / (b + self.temperature)) + (
-            self.humidity / 100.0
-        )
+        alpha = ((a * self.temperature) / (b + self.temperature)) + (self.humidity / 100.0)
 
         dew_point = (b * alpha) / (a - alpha)
         return dew_point
@@ -98,9 +96,7 @@ class BME280Sensor(BaseSensor[EnvironmentalData]):
     Typical I2C addresses: 0x76 or 0x77
     """
 
-    def __init__(
-        self, i2c_address: int = 0x76, update_interval: float = 5.0, event_bus=None
-    ):
+    def __init__(self, i2c_address: int = 0x76, update_interval: float = 5.0, event_bus=None):
         """
         Initialize BME280 sensor.
 
@@ -130,22 +126,16 @@ class BME280Sensor(BaseSensor[EnvironmentalData]):
             import board
 
             i2c = board.I2C()
-            self.sensor = adafruit_bme280.Adafruit_BME280_I2C(
-                i2c, address=self.i2c_address
-            )
+            self.sensor = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=self.i2c_address)
 
             # Configure sensor for weather monitoring
             self.sensor.sea_level_pressure = 1013.25  # Standard pressure
 
-            self.logger.info(
-                f"[BME280] Connected at I2C address 0x{self.i2c_address:02x}"
-            )
+            self.logger.info(f"[BME280] Connected at I2C address 0x{self.i2c_address:02x}")
 
         except ImportError:
             self.logger.error("[BME280] Adafruit BME280 library not installed")
-            self.logger.error(
-                "  Install with: pip install adafruit-circuitpython-bme280"
-            )
+            self.logger.error("  Install with: pip install adafruit-circuitpython-bme280")
             self.logger.error("  Also needs: pip install adafruit-blinka")
             raise
 
@@ -267,9 +257,7 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
             time.sleep(2)
 
         except ImportError:
-            self.logger.error(
-                f"[{self.sensor_type}] Adafruit DHT library not installed"
-            )
+            self.logger.error(f"[{self.sensor_type}] Adafruit DHT library not installed")
             self.logger.error("  Install with: pip install adafruit-circuitpython-dht")
             self.logger.error("  Also needs: sudo apt-get install libgpiod2")
             raise
@@ -306,30 +294,22 @@ class DHTSensor(BaseSensor[EnvironmentalData]):
             if self.sensor_type == "DHT22":
                 # DHT22: -40 to 80°C, 0-100% humidity
                 if temperature < -40 or temperature > 80:
-                    self.logger.warning(
-                        f"[{self.sensor_type}] Invalid temperature: {temperature}"
-                    )
+                    self.logger.warning(f"[{self.sensor_type}] Invalid temperature: {temperature}")
                     return None
             else:
                 # DHT11: 0 to 50°C, 20-90% humidity
                 if temperature < 0 or temperature > 50:
-                    self.logger.warning(
-                        f"[{self.sensor_type}] Invalid temperature: {temperature}"
-                    )
+                    self.logger.warning(f"[{self.sensor_type}] Invalid temperature: {temperature}")
                     return None
 
             if humidity < 0 or humidity > 100:
-                self.logger.warning(
-                    f"[{self.sensor_type}] Invalid humidity: {humidity}"
-                )
+                self.logger.warning(f"[{self.sensor_type}] Invalid humidity: {humidity}")
                 return None
 
             # Log periodically (every minute at 10s interval)
             self._log_counter += 1
             if self._log_counter % 6 == 0:
-                self.logger.info(
-                    f"[{self.sensor_type}] {temperature:.1f}°C, {humidity:.1f}%"
-                )
+                self.logger.info(f"[{self.sensor_type}] {temperature:.1f}°C, {humidity:.1f}%")
 
             return EnvironmentalData(
                 temperature=temperature,

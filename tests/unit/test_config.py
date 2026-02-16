@@ -50,9 +50,7 @@ class TestConfig:
         """Test loading YAML configuration."""
         # Create temporary YAML file
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            yaml.dump(
-                {"system": {"node_id": "test_node"}, "audio": {"sample_rate": 44100}}, f
-            )
+            yaml.dump({"system": {"node_id": "test_node"}, "audio": {"sample_rate": 44100}}, f)
             temp_path = f.name
 
         try:
@@ -103,9 +101,7 @@ class TestConfig:
     def test_deep_merge(self):
         """Test deep merging of configurations."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            yaml.dump(
-                {"detection": {"aubio": {"threshold": 0.7}}}, f  # Override default
-            )
+            yaml.dump({"detection": {"aubio": {"threshold": 0.7}}}, f)  # Override default
             temp_path = f.name
 
         try:

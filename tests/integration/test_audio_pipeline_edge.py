@@ -18,16 +18,12 @@ class FailingSource(AudioSourceNode):
 
 
 def test_source_start_failure():
-    source = FailingSource(
-        name="fail_source", sample_rate=48000, channels=1, buffer_size=1024
-    )
+    source = FailingSource(name="fail_source", sample_rate=48000, channels=1, buffer_size=1024)
     with pytest.raises(Exception):
         source.start()
 
 
 def test_source_read_buffer_failure():
-    source = FailingSource(
-        name="fail_source", sample_rate=48000, channels=1, buffer_size=1024
-    )
+    source = FailingSource(name="fail_source", sample_rate=48000, channels=1, buffer_size=1024)
     with pytest.raises(Exception):
         source.read_buffer()
