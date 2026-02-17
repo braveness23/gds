@@ -26,7 +26,7 @@
 - **Timing:** NTP (ntplib), GPS PPS for microsecond precision
 - **Monitoring:** psutil (system health)
 - **Testing:** pytest, pytest-cov, pytest-mock
-- **Code quality:** black, flake8, mypy
+- **Code quality:** black, ruff, mypy
 
 **Current focus:**
 

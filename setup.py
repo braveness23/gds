@@ -118,9 +118,7 @@ setup(
             # Code quality tools (pinned for consistency)
             "black==23.12.0",
             "ruff==0.1.6",
-            "isort==5.12.0",
             "mypy==1.5.1",
-            "flake8==6.1.0",
             # Pre-commit hooks
             "pre-commit==3.4.0",
         ],
