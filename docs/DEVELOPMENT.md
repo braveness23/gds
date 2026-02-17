@@ -1,6 +1,6 @@
 # Development Guide
 
-> **TL;DR:** Run `python scripts/setup_dev.py` for one-command setup. Tests live in `tests/` with unit, integration, and hardware tiers. Key open items: platform abstraction (partially complete), security hardening (critical issues open).
+> **TL;DR:** Run `python scripts/setup_dev.py` for one-command setup. Tests live in `tests/` with unit, integration, and hardware tiers. Key open items: platform abstraction (partially complete), security hardening (high-priority issues remain).
 
 ---
 
@@ -191,21 +191,13 @@ PyAudio (the core audio library) is already cross-platform — it handles ALSA (
 
 ## Security Audit
 
-> **Audit date:** 2026-02-15 | **Status:** Critical issues open
+> **Audit date:** 2026-02-15 | **Updated:** 2026-02-17 | **Status:** Critical issues resolved; high-priority issues remain
 
-### 🔴 Critical — Fix Before Any Deployment
+### ~~🔴 Critical — Fix Before Any Deployment~~ ✅ All Resolved
 
-#### 1. Hardcoded MQTT credentials in `config.yaml`
+#### ~~1. Hardcoded MQTT credentials in `config.yaml`~~ ✅ Fixed
 
-Real credentials are committed in `config.yaml`. Immediate actions:
-
-```bash
-echo "config.yaml" >> .gitignore
-# Use environment variables:
-export GDS_MQTT_PASSWORD="your-password"
-# Rotate the exposed password
-# Consider purging from git history
-```
+`config.yaml` removed from version control. Credentials now supplied via environment variables (`GDS_MQTT_PASSWORD` and 8 others). See resolved section below.
 
 #### ~~2. TLS certificate verification disabled~~ ✅ Fixed
 
@@ -238,20 +230,21 @@ Latitude/longitude from config are not validated (range, type). Default of `(0, 
 - Broad exception handling — narrowed across 7 core source files (commit 1b08273)
 - TLS cert verification — removed insecure fallback; `MQTTFleetCoordinator` now has proper TLS options
 - Credential injection — `GDS_MQTT_PASSWORD` and 8 other env vars override config at startup
+- Hardcoded credentials — `config.yaml` removed from version control; credentials via env vars only
 
 ### Progress Tracking
 
 **Blockers for production:**
 
-- ❌ Hardcoded credentials not removed
-- ✅ TLS validation — fixed (no insecure fallback)
-- ❌ No secrets management
+- ✅ Hardcoded credentials — `config.yaml` removed; env vars in use
+- ✅ TLS validation — no insecure fallback
+- ✅ Secrets management — env var injection at startup
 
 **Production-ready when:**
 
 - ✅ All CRITICAL issues resolved
-- ✅ Test coverage > 70%
-- ✅ Security review passed
+- ❌ Test coverage > 70% (currently ~25–35%)
+- ❌ Security review passed (high-priority issues remain)
 
 ---
 
