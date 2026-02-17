@@ -207,22 +207,10 @@ export GDS_MQTT_PASSWORD="your-password"
 # Consider purging from git history
 ```
 
-#### 2. TLS certificate verification disabled
+#### ~~2. TLS certificate verification disabled~~ ✅ Fixed
 
-`src/output/mqtt_output.py` has a silent security downgrade: if TLS setup fails for any reason, it falls back to `ssl.CERT_NONE` (no certificate validation). This is vulnerable to MITM attacks.
-
-```python
-# Current (dangerous):
-except Exception:
-    self.client.tls_set(cert_reqs=ssl.CERT_NONE)  # fallback silently downgrades
-
-# Fix:
-except Exception:
-    self.logger.error("TLS configuration failed — refusing to connect insecurely")
-    raise
-```
-
-Also change default `tls_insecure: false` in config.
+`MQTTOutputNode` no longer falls back to `ssl.CERT_NONE` on TLS setup failure — it logs and raises.
+`MQTTFleetCoordinator` now accepts `tls_ca_cert` / `tls_insecure` and uses the same verified-by-default TLS logic.
 
 ### 🟠 High — Fix This Sprint
 
@@ -248,13 +236,15 @@ Latitude/longitude from config are not validated (range, type). Default of `(0, 
 
 - MQTT topic validation — validated in `MQTTOutputNode.__init__`
 - Broad exception handling — narrowed across 7 core source files (commit 1b08273)
+- TLS cert verification — removed insecure fallback; `MQTTFleetCoordinator` now has proper TLS options
+- Credential injection — `GDS_MQTT_PASSWORD` and 8 other env vars override config at startup
 
 ### Progress Tracking
 
 **Blockers for production:**
 
 - ❌ Hardcoded credentials not removed
-- ❌ TLS validation disabled
+- ✅ TLS validation — fixed (no insecure fallback)
 - ❌ No secrets management
 
 **Production-ready when:**
