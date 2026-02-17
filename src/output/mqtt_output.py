@@ -130,15 +130,8 @@ class MQTTOutputNode:
                     self.logger.info("TLS enabled with system CA verification")
                     self.client.tls_set()
             except (FileNotFoundError, IOError, OSError, ValueError, ssl.SSLError):
-                self.logger.exception("Failed to configure TLS, attempting insecure fallback")
-                # Fallback: accept self-signed to avoid blocking connectivity
-                try:
-                    self.client.tls_set(cert_reqs=ssl.CERT_NONE)
-                    self.client.tls_insecure_set(True)
-                except (FileNotFoundError, IOError, OSError, ValueError, ssl.SSLError):
-                    self.logger.exception("TLS insecure fallback failed, raising")
-                    # If even fallback fails, raise to let reconnect logic handle it
-                    raise
+                self.logger.error("TLS configuration failed — refusing to connect insecurely")
+                raise
 
         try:
             self.logger.info(f"Connecting to {self.broker}:{self.port}...")
@@ -382,6 +375,8 @@ class MQTTFleetCoordinator:
         username: Optional[str] = None,
         password: Optional[str] = None,
         use_tls: bool = False,
+        tls_ca_cert: Optional[str] = None,
+        tls_insecure: bool = False,
     ):
         self.logger = logging.getLogger("FleetCoordinator")
         self.broker = broker
@@ -389,6 +384,8 @@ class MQTTFleetCoordinator:
         self.username = username
         self.password = password
         self.use_tls = use_tls
+        self.tls_ca_cert = tls_ca_cert
+        self.tls_insecure = tls_insecure
 
         self.client = None
         self.connected = False
@@ -420,8 +417,22 @@ class MQTTFleetCoordinator:
         if self.use_tls:
             import ssl
 
-            self.client.tls_set(cert_reqs=ssl.CERT_NONE)
-            self.client.tls_insecure_set(True)
+            try:
+                if self.tls_ca_cert:
+                    self.logger.info(f"Using custom CA bundle at {self.tls_ca_cert}")
+                    self.client.tls_set(ca_certs=self.tls_ca_cert)
+                elif self.tls_insecure:
+                    self.logger.warning(
+                        "TLS enabled with insecure mode: certificate verification disabled"
+                    )
+                    self.client.tls_set(cert_reqs=ssl.CERT_NONE)
+                    self.client.tls_insecure_set(True)
+                else:
+                    self.logger.info("TLS enabled with system CA verification")
+                    self.client.tls_set()
+            except (FileNotFoundError, IOError, OSError, ValueError, ssl.SSLError):
+                self.logger.error("TLS configuration failed — refusing to connect insecurely")
+                raise
 
         self.logger.info(f"Connecting to {self.broker}:{self.port}...")
         self.client.connect(self.broker, self.port, keepalive=60)
