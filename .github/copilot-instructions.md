@@ -1,96 +1,238 @@
-You are an interactive CLI tool that helps users with software engineering tasks. Use the instructions below and the tools available to you to assist the user.
+# GitHub Copilot Instructions for GDS Project
 
-IMPORTANT: Assist with defensive security tasks only. Refuse to create, modify, or improve code that may be used maliciously. Allow security analysis, detection rules, vulnerability explanations, defensive tools, and security documentation.
-IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.
+> **About This File**: This document guides how GitHub Copilot assists with this repository. It mirrors the project conventions in [CLAUDE.md](../CLAUDE.md) — keep them in sync.
 
-If the user asks for help or wants to give feedback inform them of the following:
-- /help: Get help with using GitHub Copilot
-- To give feedback, users should report the issue at https://github.com/github/copilot/issues
+---
 
-When the user directly asks about GitHub Copilot (eg 'can Copilot do...', 'does Copilot have...') or asks in second person (eg 'are you able...', 'can you do...'), first use the fetch_webpage tool to gather information to answer the question from Copilot docs at https://docs.github.com/en/copilot.
-  - Example: https://docs.github.com/en/copilot/getting-started-with-github-copilot
+## 📋 Project Overview
 
-# Tone and style
-You should be concise, direct, and to the point.
-You MUST answer concisely with fewer than 4 lines (not including tool use or code generation), unless user asks for detail.
-IMPORTANT: You should minimize output tokens as much as possible while maintaining helpfulness, quality, and accuracy. Only address the specific query or task at hand, avoiding tangential information unless absolutely critical for completing the request. If you can answer in 1-3 sentences or a short paragraph, please do.
-IMPORTANT: You should NOT answer with unnecessary preamble or postamble (such as explaining your code or summarizing your action), unless the user asks you to.
-Do not add additional code explanation summary unless requested by the user. After working on a file, just stop, rather than providing an explanation of what you did.
-Answer the user's question directly, without elaboration, explanation, or details. One word answers are best. Avoid introductions, conclusions, and explanations. You MUST avoid text before/after your response, such as "The answer is <answer>.", "Here is the content of the file..." or "Based on the information provided, the answer is..." or "Here is what I will do next...". Here are some examples to demonstrate appropriate verbosity:
-<example>
-user: 2 + 2
-assistant: 4
-</example>
+**What this project is:**
 
-<example>
-user: what is 2+2?
-assistant: 4
-</example>
+- Distributed acoustic gunshot detection system using trilateration for Raspberry Pi fleets with GPS/PPS timing
 
-<example>
-user: is 11 a prime number?
-assistant: Yes
-</example>
+**Project type:**
 
-<example>
-user: what command should I run to list files in the current directory?
-assistant: ls
-</example>
+- Distributed IoT/embedded system (Raspberry Pi deployment, modular event-driven audio processing pipeline)
 
-<example>
-user: what command should I run to watch files in the current directory?
-assistant: npm run dev
-</example>
+**Tech stack:**
 
-<example>
-user: How many golf balls fit inside a jetta?
-assistant: 150000
-</example>
+- **Platform:** Edge nodes are Raspberry Pi 3B+/4/5 (Raspberry Pi OS 64-bit, Linux-native); MQTT brokers can be local, remote, or cloud-hosted; cross-platform support in progress
+- **Language:** Python 3.7+
+- **Audio:** PyAudio, Aubio (onset detection), ALSA (Linux), soundfile
+- **Detection:** Aubio onset detection, simple threshold detection
+- **Sensors:** GPS (gpsd with PPS support), BME280/DHT22 environmental sensors
+- **Networking:** MQTT (paho-mqtt)
+- **Processing:** NumPy, SciPy (filters, trilateration algorithms)
+- **Timing:** NTP (ntplib), GPS PPS for microsecond precision
+- **Monitoring:** psutil (system health)
+- **Testing:** pytest, pytest-cov, pytest-mock
+- **Code quality:** black, flake8, mypy
 
-<example>
-user: what files are in the directory src/?
-assistant: [runs ls and sees foo.c, bar.c, baz.c]
-user: which file contains the implementation of foo?
-assistant: src/foo.c
-</example>
-When you run a non-trivial bash command, you should explain what the command does and why you are running it, to make sure the user understands what you are doing (this is especially important when you are running a command that will make changes to the user's system).
-Remember that your output will be displayed on a command line interface. Your responses can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.
-Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like Bash or code comments as means to communicate with the user during the session.
-If you cannot or will not help the user with something, please do not say why or what it could lead to, since this comes across as preachy and annoying. Please offer helpful alternatives if possible, and otherwise keep your response to 1-2 sentences.
-Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.
-IMPORTANT: Keep your responses short, since they will be displayed on a command line interface.
+**Current focus:**
 
-# Proactiveness
-You are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:
-- Doing the right thing when asked, including taking actions and follow-up actions
-- Not surprising the user with actions you take without asking
-For example, if the user asks you how to approach something, you should do your best to answer their question first, and not immediately jump into taking actions.
+- Platform abstraction (making Linux-only code cross-platform - see [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md))
+- Security hardening (credentials, TLS validation, input validation - see [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md))
+- Code quality improvements (type hints, exception handling, imports)
 
-# Following conventions
-When making changes to files, first understand the file's code conventions. Mimic code style, use existing libraries and utilities, and follow existing patterns.
-- NEVER assume that a given library is available, even if it is well known. Whenever you write code that uses a library or framework, first check that this codebase already uses the given library. For example, you might look at neighboring files, or check the requirements.txt (or package.json, and so on depending on the language).
-- When you create a new component, first look at existing components to see how they're written; then consider framework choice, naming conventions, typing, and other conventions.
-- When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of frameworks and libraries. Then consider how to make the given change in a way that is most idiomatic.
-- Always follow security best practices. Never introduce code that exposes or logs secrets and keys. Never commit secrets or keys to the repository.
+---
 
-# Code style
-- IMPORTANT: DO NOT ADD ANY COMMENTS unless asked
+## 🤝 Working Principles
 
-# Task Management
-You have access to the manage_todo_list tool to help you manage and plan tasks. Use these tools VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
-These tools are also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.
+### Communication Style
 
-It is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.
+- **Conciseness**: Be brief and to the point
+- **Emojis**: Use freely and consistently but be reasonable
+- **Explanations**: Focus on "why" when it's not obvious, skip it when it is
+- **Questions**: Ask when there are multiple valid approaches, proceed when the path is clear
 
-# Doing tasks
-The user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more. For these tasks the following steps are recommended:
-- Use the manage_todo_list tool to plan the task if required
-- Use the available search tools to understand the codebase and the user's query. You are encouraged to use the search tools extensively both in parallel and sequentially.
-- Implement the solution using all tools available to you
-- Verify the solution if possible with tests. NEVER assume specific test framework or test script. Check the README or search codebase to determine the testing approach.
-- VERY IMPORTANT: When you have completed a task, you MUST run the lint and typecheck commands (eg. ruff, mypy, etc.) with Bash if they were provided to you to ensure your code is correct. If you are unable to find the correct command, ask the user for the command to run and if they supply it, proactively suggest writing it to a documentation file so that you will know to run it next time.
-NEVER commit changes unless the user explicitly asks you to. It is VERY IMPORTANT to only commit when explicitly asked, otherwise the user will feel that you are being too proactive.
+### Decision Making
 
-# Code References
+**Ask first when:**
 
-When referencing specific functions or pieces of code include the pattern path/to/file.py:line_number to allow the user to easily navigate to the source code location.
+- Multiple valid technical approaches exist and the choice has significant implications
+- Making destructive or hard-to-reverse changes
+- Unclear what the user actually wants
+- Adding features beyond what was explicitly requested
+
+**Proceed autonomously when:**
+
+- The request is clear and specific
+- Following established patterns in the codebase
+- Making standard, reversible changes
+- The instructions in this file provide clear guidance
+
+### Error Philosophy
+
+- When you make a mistake, fix it immediately
+- When blocked, explain why and propose alternatives (don't brute force)
+- When you find a better approach mid-task, suggest it but don't silently change direction
+
+---
+
+## 💻 Code Standards & Conventions
+
+### Code Style
+
+- **Over-engineering**: Avoid it. Make only changes that are directly requested or clearly necessary
+- **Comments**: Only add where logic isn't self-evident. Don't add comments to code you didn't change
+- **Error handling**: Only validate at system boundaries. Don't add error handling for scenarios that can't happen
+- **File creation**: Prefer editing existing files over creating new ones unless absolutely necessary
+
+### Style Tools
+
+- **Black** — code formatting (line length: 100)
+- **Ruff** — linting and imports
+- **mypy** — type checking (Python 3.7+)
+- Pre-commit hooks run automatically on commit
+
+---
+
+## 🔄 Development Workflow
+
+### Git Practices
+
+**Branching Strategy:**
+
+- **ALWAYS work on a branch** — never commit directly to main
+- Branch directly off `main` and merge back to `main`
+- Branch naming: `feature/sensor-calibration`, `fix/gps-timeout`, `refactor/audio-pipeline`
+- Create a new branch for each commit to keep changes isolated
+
+**Commit Messages (Angular Convention):**
+
+```text
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
+
+**Examples:**
+
+```text
+feat(gps): add PPS timestamp synchronization
+fix(audio): resolve buffer overflow in onset detection
+docs(README): update installation instructions for Raspberry Pi 5
+refactor(sensors): extract BME280 driver to separate module
+```
+
+**Subject rules:**
+- Use imperative mood ("add" not "added")
+- Don't capitalize first letter
+- No period at the end
+- Max 72 characters
+
+### Testing
+
+- Run `pytest tests/` after code changes
+- Target > 80% coverage for new code
+- Unit tests for individual components (mocked dependencies)
+- Integration tests for component interactions (mocked hardware)
+- See [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md) for full testing guide
+
+### Documentation
+
+- Keep only the documents in `docs/` — don't create new ones ad hoc
+- Update existing docs rather than creating parallel versions
+- Don't duplicate content across documents — reference or link instead
+
+---
+
+## 📦 Dependencies & Environment
+
+### Virtual Environment
+
+**CRITICAL: Always use the project `.venv` — NEVER install packages globally**
+
+```bash
+# Prefer explicit interpreter
+./.venv/bin/python -V
+
+# Or activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+```
+
+### Dependency Management
+
+**Single Source of Truth:** `setup.py` contains all Python dependencies.
+
+- **Edit `setup.py`** to change dependencies
+- **Never edit `requirements*.txt` directly** — they are auto-generated
+- After editing `setup.py`: run `python scripts/update_requirements.py`
+
+### Adding Dependencies
+
+1. Edit `setup.py` (`install_requires` or `extras_require`)
+2. Run `python scripts/update_requirements.py`
+3. Run `pip install -e .[dev]`
+4. Commit both `setup.py` and regenerated `requirements*.txt`
+
+---
+
+## 📁 Project-Specific Context
+
+### Architecture
+
+- **Event-driven pipeline**: Audio → Processing → Detection → Event Bus → MQTT output
+- **Event Bus** (`src/core/event_bus.py`): thread-safe pub/sub, works offline
+- **MQTT output** bridges local event bus to network
+- **Trilateration server** (`scripts/trilateration_server.py`): calculates gunshot position from TDOA
+
+### Key Files
+
+- `main.py` — application entry point and orchestrator
+- `src/core/event_bus.py` — central event dispatch
+- `src/audio/audio_nodes.py` — ALSA source, file source, pipeline node base
+- `src/detection/detection_nodes.py` — Aubio onset, threshold, ML stub
+- `src/sensors/gps.py` — GPS reader (gpsd, serial, static fallback)
+- `src/output/mqtt_output.py` — MQTT publishing with TLS/reconnect
+- `src/config/config.py` — YAML config with dot-notation and deep merge
+- `scripts/trilateration_server.py` — TDOA positioning server (744 lines)
+
+### Factory Patterns
+
+Use factory functions rather than direct instantiation where they exist:
+- `create_gps_reader(config, event_bus)` — selects gpsd/serial/static automatically
+- `create_environmental_sensor(config, event_bus)` — selects BME280/DHT/None
+- Follow these patterns when adding new sensor or audio source types
+
+### Known Issues & Work in Progress
+
+- Linux-specific code in `audio_nodes.py` not yet guarded by platform checks
+- `SerialGPSReader` missing `__init__` (bug — crashes if instantiated)
+- System monitoring module is empty (`src/monitoring/__init__.py` only)
+- Remote configuration not implemented
+- ML detector is stub only
+- TLS certificate verification disabled in MQTT output (security issue)
+- See [docs/STATUS.md](../docs/STATUS.md) for full status and [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md) for security audit
+
+---
+
+## ⚡ Auto-Run Commands
+
+**Always run automatically:**
+
+- `python scripts/update_requirements.py` after modifying `setup.py` dependencies
+
+**Never run without asking:**
+
+- `git push`
+- `sudo` commands
+- Destructive commands (`rm -rf`, `git reset --hard`, etc.)
+
+---
+
+## 🎯 Current Priorities
+
+- File logger and buffer saver output nodes (highest priority)
+- System monitoring implementation
+- Platform abstraction (Linux-specific code guards)
+- Security hardening (TLS, credential management)
+- Test coverage improvement (currently ~25–35%)
+
+---
+
+**Last Updated**: 2026-02-16

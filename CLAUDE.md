@@ -26,12 +26,12 @@
 - **Timing:** NTP (ntplib), GPS PPS for microsecond precision
 - **Monitoring:** psutil (system health)
 - **Testing:** pytest, pytest-cov, pytest-mock
-- **Code quality:** black, flake8, mypy
+- **Code quality:** black, ruff, mypy
 
 **Current focus:**
 
-- Platform abstraction (making Linux-only code cross-platform - see [PLATFORM_ABSTRACTION_PLAN.md](PLATFORM_ABSTRACTION_PLAN.md))
-- Security hardening (credentials, TLS validation, input validation - see [CODE_AUDIT.md](CODE_AUDIT.md))
+- Platform abstraction (making Linux-only code cross-platform - see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
+- Security hardening (credentials, TLS validation, input validation - see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
 - Code quality improvements (type hints, exception handling, imports)
 
 ---
@@ -292,7 +292,7 @@ fi
 - Production: Use `~=` for controlled updates (e.g., `numpy~=1.21.0` allows 1.21.x)
 - Production (risky packages): Use `>=X,<Y` with upper bounds (e.g., `numpy>=1.21.0,<2.0`)
 - Development: Pin exact versions (e.g., `pytest==7.4.3`)
-- System packages: Documented in [SYSTEM_DEPENDENCIES.md](SYSTEM_DEPENDENCIES.md)
+- System packages: Documented in [docs/SETUP.md](docs/SETUP.md)
 
 **Files:**
 - `setup.py` - **EDIT THIS** to change dependencies
@@ -345,8 +345,8 @@ python scripts/setup_dev.py
 **Manual setup:**
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install --upgrade pip
 pip install -e .[dev]
 pre-commit install
@@ -361,7 +361,7 @@ sudo bash scripts/setup_production.sh
 
 ### System Dependencies
 
-See [SYSTEM_DEPENDENCIES.md](SYSTEM_DEPENDENCIES.md) for platform-specific requirements.
+See [docs/SETUP.md](docs/SETUP.md) for platform-specific requirements.
 
 **Quick reference:**
 - **Raspberry Pi/Linux:** `portaudio19-dev`, `aubio-tools`, `libsndfile1-dev`, `gpsd`
@@ -371,7 +371,8 @@ See [SYSTEM_DEPENDENCIES.md](SYSTEM_DEPENDENCIES.md) for platform-specific requi
 ### VSCode Setup
 
 **VSCode automatically:**
-- Detects the `venv/` directory
+
+- Detects the `.venv/` directory
 - Activates venv in integrated terminal
 - Uses venv Python for linting, testing, debugging
 - Prompts to install recommended extensions
@@ -388,7 +389,7 @@ See [SYSTEM_DEPENDENCIES.md](SYSTEM_DEPENDENCIES.md) for platform-specific requi
 **When you add a library, extension, or system dependency:**
 
 1. Ensure venv is activated
-2. Update `setup.py` (Python packages) or `SYSTEM_DEPENDENCIES.md` (system packages)
+2. Update `setup.py` (Python packages) or `docs/SETUP.md` (system packages)
 3. Regenerate requirements: `python scripts/update_requirements.py`
 4. Update `.vscode/extensions.json` if adding VSCode extension
 5. Commit all changes together
@@ -466,8 +467,8 @@ When specifying commands in automation or documentation, always show the `.venv`
 **Active goals:**
 
 - Dependency management system (setup complete - 2026-02-15)
-- Platform abstraction (making Linux-only code cross-platform - see [PLATFORM_ABSTRACTION_PLAN.md](PLATFORM_ABSTRACTION_PLAN.md))
-- Security hardening (credentials, TLS validation, input validation - see [CODE_AUDIT.md](CODE_AUDIT.md))
+- Platform abstraction (making Linux-only code cross-platform - see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
+- Security hardening (credentials, TLS validation, input validation - see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
 - Code quality improvements (type hints, exception handling, imports)
 
 **Deferred/On hold:**
@@ -497,6 +498,7 @@ When specifying commands in automation or documentation, always show the `.venv`
 - **2026-02-15**: Added comprehensive Dependencies & Environment section with venv workflow, dependency management practices, and cross-platform setup guidance
 - **2026-02-15**: Added comprehensive Git Practices section with branching strategy, Angular commit conventions, cleanup workflow, and approval process
 - **2026-02-15**: Added pre-commit hook requirements to Git Practices - must run before showing approval summary to avoid fix loops
+- **2026-02-16**: Major docs restructuring — 12 old docs replaced with 4 focused files (ARCHITECTURE.md, DEVELOPMENT.md, SETUP.md, STATUS.md); README rewritten to reflect actual project status; copilot-instructions.md rewritten with project-specific content; linter updated from flake8 → ruff throughout
 
 ### Improvement Ideas
 

@@ -1,0 +1,300 @@
+# Development Guide
+
+> **TL;DR:** Run `python scripts/setup_dev.py` for one-command setup. Tests live in `tests/` with unit, integration, and hardware tiers. Key open items: platform abstraction (partially complete), security hardening (critical issues open).
+
+---
+
+## Development Setup
+
+### One-Command Setup (Recommended)
+
+```bash
+python scripts/setup_dev.py
+```
+
+This creates `.venv/`, installs all dependencies, configures pre-commit hooks, and validates the setup.
+
+### Manual Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e .[dev]
+pre-commit install
+pytest                       # validate setup
+```
+
+Always use `./.venv/bin/python` explicitly in scripts/automation rather than relying on shell activation.
+
+### Dependency Management
+
+`setup.py` is the single source of truth for all Python dependencies. **Never edit `requirements*.txt` directly.**
+
+```bash
+# Add a dependency: edit setup.py, then:
+python scripts/update_requirements.py
+pip install -e .[dev]
+```
+
+Pre-commit will fail if `requirements*.txt` is out of sync with `setup.py`.
+
+---
+
+## Testing
+
+### Philosophy
+
+This system has unique challenges: real-time audio, hardware dependencies, microsecond timing, distributed coordination. The strategy:
+
+1. **Unit tests** — individual components, all dependencies mocked
+2. **Integration tests** — components together, hardware mocked
+3. **Hardware tests** — real hardware, run manually
+4. **System tests** — full pipeline with recorded audio files
+
+### Running Tests
+
+```bash
+pytest                              # all tests
+pytest tests/unit/                  # fast unit tests only
+pytest tests/integration/           # integration tests
+pytest --cov=src --cov-report=html  # with coverage (view htmlcov/index.html)
+pytest -v                           # verbose output
+pytest -s                           # show print statements
+pytest -x                           # stop on first failure
+```
+
+### Test Markers
+
+```bash
+pytest -m unit          # unit tests only
+pytest -m integration   # integration tests only
+pytest -m hardware      # hardware tests (requires physical hardware)
+pytest -m "not hardware"  # skip hardware tests
+```
+
+### Directory Structure
+
+```text
+tests/
+├── conftest.py            # shared fixtures (event_bus, audio buffers, mock GPS)
+├── unit/                  # fast tests, no I/O
+│   ├── test_config.py
+│   ├── test_event_bus.py
+│   ├── test_sensors.py
+│   └── ...
+├── integration/           # slower, use mock services
+│   ├── test_audio_pipeline.py
+│   ├── test_mqtt_integration.py
+│   └── ...
+├── hardware/              # requires physical hardware
+│   └── (empty — needs test procedures written)
+└── mocks/
+    ├── mock_mqtt.py       # MockMQTTClient with in-process pub/sub
+    └── ...
+```
+
+### Shared Fixtures (`conftest.py`)
+
+```python
+# Available in all tests:
+event_bus       # fresh EventBus per test
+test_config     # Config with MQTT disabled
+silent_audio    # np.zeros(1024) AudioBuffer
+impulse_audio   # sharp impulse + exponential decay (gunshot-like)
+noise_audio     # np.random.randn * 0.1 AudioBuffer
+mock_paho_mqtt  # patches paho.mqtt.client.Client
+```
+
+### Mock Implementations
+
+**`tests/mocks/mock_mqtt.py` — MockMQTTClient**
+
+- Simulates broker in-process
+- Shared message bus across all instances
+- `MockMQTTClient.get_messages(topic)` — inspect published messages
+- `MockMQTTClient.reset()` — clear between tests
+
+**Mock GPS:**
+
+```python
+from sensors.mock_gps import MockGPSDevice
+gps = MockGPSDevice(latitude=37.7749, longitude=-122.4194, altitude=10.0)
+```
+
+**Mock audio source:** See `tests/mocks/` for `MockAudioSource` with configurable signal types: `silence`, `noise`, `sine`, `impulse`.
+
+### Test Patterns
+
+```python
+# Unit test (fast, isolated)
+def test_highpass_filter_attenuates_low_freq():
+    hpf = HighPassFilterNode(cutoff_freq=5000, order=4)
+    t = np.arange(1024) / 48000
+    samples = np.sin(2 * np.pi * 100 * t).astype(np.float32)
+    buffer = AudioBuffer(samples=samples, timestamp=0.0, sample_rate=48000, ...)
+    filtered = hpf.process(buffer)
+    assert np.sqrt(np.mean(filtered.samples**2)) < np.sqrt(np.mean(samples**2)) * 0.1
+
+# Integration test (uses mock services)
+def test_mqtt_publishes_detections(event_bus):
+    MockMQTTClient.reset()
+    with patch("src.output.mqtt_output.mqtt.Client", MockMQTTClient):
+        mqtt_node = MQTTOutputNode(broker="localhost", ...)
+        mqtt_node.connect()
+        event_bus.publish(Event(EventType.DETECTION, ...))
+        time.sleep(0.2)
+        assert len(MockMQTTClient.get_messages("gunshot/detections")) >= 1
+```
+
+### Coverage Goals
+
+| Tier | Target |
+| ---- | ------ |
+| Unit tests | > 80% coverage |
+| Integration tests | All critical paths |
+| Hardware tests | Manual validation before deployment |
+
+**Current state:** ~30–40% estimated (see [STATUS.md](STATUS.md)).
+
+---
+
+## Platform Abstraction
+
+> **Status:** Partially planned, not yet implemented.
+
+**Problem:** Some code is Linux-specific and prevents running on Windows/macOS.
+
+### Known Linux-Only Code
+
+| File | Issue | Status |
+| ---- | ----- | ------ |
+| `src/audio/audio_nodes.py:149–165` | Loads `libasound.so.2` via ctypes | 🔴 Not guarded |
+| `src/audio/audio_nodes.py:191–233` | Parses `/proc/asound/cards` | 🔴 Not guarded |
+| `src/audio/i2s_raw_source.py` | Opens `/dev/i2s` device | 🔴 No platform check |
+| `src/config/config.py` | Defaults use `/dev/pps0`, `/dev/serial0` | 🟡 Works but confusing on Windows |
+| `src/sensors/gps.py` | `SerialGPSReader` missing `__init__` | 🔴 Bug — crashes if instantiated |
+
+### Good News
+
+PyAudio (the core audio library) is already cross-platform — it handles ALSA (Linux), WASAPI (Windows), and CoreAudio (macOS) internally. The Linux-specific code is only for optional enhancements (ALSA error suppression, device name mapping). Both are already wrapped in `try/except` and fail gracefully.
+
+### Planned Changes (see plan in git history)
+
+1. Create `src/audio/platform_utils.py` with `is_linux()`, `supports_alsa_enhancements()`, etc.
+2. Wrap ALSA-specific code in `if supports_alsa_enhancements():`
+3. Add platform check to `i2s_raw_source.py` start()
+4. Create audio source factory function (mirrors GPS factory pattern)
+5. Add platform-specific config defaults
+6. Fix `SerialGPSReader` missing `__init__`
+
+---
+
+## Security Audit
+
+> **Audit date:** 2026-02-15 | **Status:** Critical issues open
+
+### 🔴 Critical — Fix Before Any Deployment
+
+#### 1. Hardcoded MQTT credentials in `config.yaml`
+
+Real credentials are committed in `config.yaml`. Immediate actions:
+
+```bash
+echo "config.yaml" >> .gitignore
+# Use environment variables:
+export GDS_MQTT_PASSWORD="your-password"
+# Rotate the exposed password
+# Consider purging from git history
+```
+
+#### 2. TLS certificate verification disabled
+
+`src/output/mqtt_output.py` has a silent security downgrade: if TLS setup fails for any reason, it falls back to `ssl.CERT_NONE` (no certificate validation). This is vulnerable to MITM attacks.
+
+```python
+# Current (dangerous):
+except Exception:
+    self.client.tls_set(cert_reqs=ssl.CERT_NONE)  # fallback silently downgrades
+
+# Fix:
+except Exception:
+    self.logger.error("TLS configuration failed — refusing to connect insecurely")
+    raise
+```
+
+Also change default `tls_insecure: false` in config.
+
+### 🟠 High — Fix This Sprint
+
+#### 3. No GPS coordinate validation (`src/sensors/gps.py:558–560`)
+
+Latitude/longitude from config are not validated (range, type). Default of `(0, 0)` silently places the node in the Gulf of Guinea.
+
+#### 4. MQTT Fleet Coordinator has no node identity verification
+
+`MQTTFleetCoordinator` accepts messages from anyone. No rate limiting on commands.
+
+### 🟡 Medium — Fix This Month
+
+| Issue | File | Notes |
+| ----- | ---- | ----- |
+| Brittle ALSA device string parsing | `audio_nodes.py:195–233` | No regex validation; crashes on malformed `hw:abc,0` |
+| Global EventBus singleton not thread-safe | `event_bus.py:200–210` | Race condition in `get_event_bus()` creation |
+| Event queue silently drops events when full | `event_bus.py:75–144` | Queue size 1000 hardcoded; detection events lost |
+| Config.save() swallows exceptions | `config.py:191–208` | Caller can't know save failed |
+| Missing type hints | `gps.py`, `mqtt_output.py` | Factory functions lack return type annotations |
+
+### ✅ Resolved
+
+- MQTT topic validation — validated in `MQTTOutputNode.__init__`
+- Broad exception handling — narrowed across 7 core source files (commit 1b08273)
+
+### Progress Tracking
+
+**Blockers for production:**
+
+- ❌ Hardcoded credentials not removed
+- ❌ TLS validation disabled
+- ❌ No secrets management
+
+**Production-ready when:**
+
+- ✅ All CRITICAL issues resolved
+- ✅ Test coverage > 70%
+- ✅ Security review passed
+
+---
+
+## Code Quality
+
+### Style Tools
+
+| Tool | Purpose | Config |
+| ---- | ------- | ------ |
+| Black | Formatting | `pyproject.toml` (line length 100) |
+| Ruff | Linting + imports | `pyproject.toml` |
+| mypy | Type checking | `pyproject.toml` (Python 3.7+) |
+| pre-commit | Run all on commit | `.pre-commit-config.yaml` |
+
+```bash
+black src/              # format
+ruff check src/         # lint
+mypy src/               # type check
+pre-commit run --all-files  # run all checks
+```
+
+### Pre-commit Hooks
+
+`.pre-commit-config.yaml` runs: end-of-file-fixer, trailing-whitespace, check-yaml, ruff (with `--fix`, including import sorting), black, and a custom `sync-requirements` hook.
+
+---
+
+## CI/CD
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR:
+
+- Unit tests on Ubuntu
+- Integration tests
+- Coverage reporting
+
+Hardware tests are excluded from CI (require physical hardware).

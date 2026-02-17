@@ -6,379 +6,199 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A distributed acoustic gunshot detection and trilateration system designed for Raspberry Pi fleets with GPS/PPS timing, environmental sensors, and mesh networking capabilities.
+A distributed acoustic gunshot detection and trilateration system for Raspberry Pi fleets with GPS/PPS timing.
 
-## Features
+## What It Does
 
-- **High-Precision Timing**: GPS PPS and NTP synchronization for microsecond-level timestamp accuracy
-- **Multiple Detection Methods**:
-  - Aubio onset detection (fast, low-latency)
-  - ML-based classification (high accuracy)
-  - Simple threshold detection (fallback)
-- **Environmental Sensors**: Temperature, humidity, and pressure monitoring
-- **GPS Location**: Real-time position tracking
-- **Mesh Networking**: MQTT, Meshtastic, and LoRa support
-- **Remote Configuration**: Manage fleet configuration via MQTT or HTTP API
-- **System Monitoring**: CPU, memory, disk, network, and audio buffer health
-- **Modular Pipeline**: Plug-and-play audio processing nodes
+- Listens for acoustic gunshot events via a microphone
+- Timestamps detections with GPS-synchronized clocks (microsecond precision via PPS)
+- Publishes events to an MQTT broker
+- A central trilateration server calculates gunshot position from time-of-arrival differences across multiple nodes
+
+**Current status: ~50–60% complete.** Core detection and MQTT publishing work. System monitoring and remote configuration are not yet implemented. See [docs/STATUS.md](docs/STATUS.md).
 
 ## Hardware Requirements
 
-### Minimum Setup
+**Minimum:**
+
 - Raspberry Pi 3B+ or later
-- I2S MEMS microphone (or USB audio interface)
+- I2S MEMS microphone or USB audio interface
 - MicroSD card (16GB+)
 
-### Recommended Setup
-- Raspberry Pi 4/5
-- I2S MEMS microphone
-- GPS module with PPS output
-- BME280 or DHT22 temperature/humidity sensor
-- Meshtastic radio or LoRa module (optional)
+**Recommended:**
 
-## Software Requirements
+- Raspberry Pi 4 or 5
+- GPS module with PPS output (U-blox NEO-M8N)
+- BME280 temperature/humidity sensor (improves trilateration accuracy)
 
-- Raspberry Pi OS (64-bit recommended)
-- Python 3.7+
-- gpsd (for GPS)
-- ALSA audio drivers
-
-## Installation
+## Quick Start
 
 ### 1. System Dependencies
 
 ```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Install system packages
-sudo apt install -y python3-pip python3-dev python3-venv \
-    libasound2-dev portaudio19-dev libportaudio2 \
-    gpsd gpsd-clients python3-gps \
-    git
-
-# Install aubio
-sudo apt install -y aubio-tools libaubio-dev libaubio-doc
+sudo apt-get update && sudo apt-get install -y \
+    python3-dev python3-pip python3-venv build-essential \
+    portaudio19-dev libportaudio2 libasound2-dev libsndfile1-dev \
+    aubio-tools libaubio-dev \
+    gpsd gpsd-clients python3-gps git
 ```
 
 ### 2. Python Environment
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/gunshot-detection-system.git
-cd gunshot-detection-system
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Install package
-pip install -e .
+git clone https://github.com/braveness23/gds.git
+cd gds
+python scripts/setup_dev.py    # creates .venv, installs deps, sets up pre-commit
 ```
 
-### 3. Optional: Sensor Dependencies
+Or manually:
 
-For environmental sensors (BME280/DHT22):
 ```bash
-pip install -r requirements.txt adafruit-circuitpython-bme280 adafruit-circuitpython-dht
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e .[dev]
+pre-commit install
 ```
 
-For Meshtastic:
-```bash
-pip install meshtastic
-```
+### 3. Configure
 
-## Configuration
-
-### 1. Create Configuration File
-
-Copy the example config:
 ```bash
 cp examples/config.example.yaml config.yaml
 ```
 
 Edit `config.yaml` with your settings:
+
 ```yaml
 system:
-  node_id: "pi_gunshot_001"  # Unique ID for this node
+  node_id: "pi_gunshot_001"    # unique per node
 
 audio:
   source_type: "alsa"
-  device: "hw:0,0"  # Your audio device
-  sample_rate: 48000
-
-sensors:
-  gps:
-    enabled: true
-  environment:
-    enabled: true
-    sensor_type: "BME280"  # or "DHT22", "DHT11"
+  device: "hw:0,0"             # find with: arecord -l
 
 output:
   mqtt:
     enabled: true
-    broker: "192.168.1.100"  # Your MQTT broker
+    broker: "192.168.1.100"    # your MQTT broker IP
     topic: "gunshot/detections"
 ```
 
-### 2. Test Audio Device
+### 4. Run
 
-Find your audio device:
 ```bash
-arecord -l
+python main.py --config config.yaml
+
+# Test with audio file (no microphone needed):
+python main.py --config config.yaml --test examples/test_audio.wav
+
+# Without MQTT:
+python main.py --config config.yaml --no-mqtt
 ```
 
-Test recording:
-```bash
-arecord -D hw:0,0 -f S32_LE -r 48000 -c 1 -d 5 test.wav
-aplay test.wav
-```
+### 5. Run as Service
 
-### 3. Configure GPS (if using)
-
-Edit `/etc/default/gpsd`:
-```
-DEVICES="/dev/ttyAMA0"  # Or your GPS serial device
-GPSD_OPTIONS="-n"
-START_DAEMON="true"
-```
-
-Restart gpsd:
-```bash
-sudo systemctl restart gpsd
-sudo systemctl enable gpsd
-```
-
-Test GPS:
-```bash
-cgps -s
-```
-
-## Usage
-
-### Command Line
-
-Run the detector:
-```bash
-python src/main.py --config config.yaml
-```
-
-### Systemd Service
-
-Install as a system service:
 ```bash
 sudo cp systemd/gunshot-detector.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable gunshot-detector
-sudo systemctl start gunshot-detector
-```
-
-Check status:
-```bash
-sudo systemctl status gunshot-detector
-```
-
-View logs:
-```bash
+sudo systemctl enable --now gunshot-detector
 sudo journalctl -u gunshot-detector -f
-```
-
-## Remote Configuration
-
-### MQTT Configuration
-
-Set a config value:
-```bash
-mosquitto_pub -h <broker> -t "gunshot/config/<node_id>/set/detection/aubio/threshold" -m "0.7"
-```
-
-Get current config:
-```bash
-mosquitto_pub -h <broker> -t "gunshot/config/<node_id>/get" -m ""
-mosquitto_sub -h <broker> -t "gunshot/config/<node_id>/current"
-```
-
-### HTTP API
-
-Get config:
-```bash
-curl http://<node_ip>:8080/config
-```
-
-Set value:
-```bash
-curl -X POST http://<node_ip>:8080/config/set \
-  -H "Content-Type: application/json" \
-  -d '{"path": "detection.aubio.threshold", "value": 0.7}'
 ```
 
 ## Architecture
 
-```
+```text
 ┌─────────────────┐
-│  Audio Source   │ (I2S/ALSA)
+│  Audio Source   │  (I2S/ALSA microphone)
 │  + GPS/PPS      │
-│  + Sensors      │
+│  + Env Sensors  │
 └────────┬────────┘
-         │
          ▼
 ┌─────────────────┐
-│   Processing    │
-│  - HPF Filter   │
-│  - Mono Conv    │
+│   Processing    │  (HPF filter, mono conversion, gain)
 └────────┬────────┘
-         │
          ▼
 ┌─────────────────┐
-│   Detectors     │
-│  - Aubio        │
-│  - ML Model     │
-│  - Threshold    │
+│   Detectors     │  (Aubio onset detection, threshold)
 └────────┬────────┘
-         │
          ▼
 ┌─────────────────┐
-│   Event Bus     │
+│   Event Bus     │  (in-process pub/sub)
 └────────┬────────┘
-         │
          ▼
 ┌─────────────────┐
-│    Outputs      │
-│  - MQTT         │
-│  - Meshtastic   │
-│  - LoRa         │
-│  - File Logger  │
+│    Outputs      │  (MQTT)
 └─────────────────┘
+         │ MQTT
+         ▼
+  MQTT Broker  →  Trilateration Server  →  Dashboard
 ```
 
-## Trilateration
+Each node operates independently. Network failures don't affect local detection.
 
-For accurate gunshot localization:
+## Project Structure
 
-1. **Synchronize Clocks**: All nodes must use GPS PPS or NTP
-2. **Deploy Grid**: Position nodes in a grid covering your area
-3. **Collect Data**: Each node timestamps detections with microsecond precision
-4. **Calculate Position**: Central server uses time-of-arrival differences
-
-Example trilateration server (separate repository recommended):
-```python
-# Simplified example - see docs for full implementation
-from scipy.optimize import least_squares
-
-def trilaterate(detections):
-    """
-    detections: [(lat, lon, alt, timestamp), ...]
-    Returns: (lat, lon, alt) of gunshot origin
-    """
-    # Implement multilateration algorithm
-    pass
-```
-
-## Monitoring
-
-Subscribe to health events:
-```bash
-mosquitto_sub -h <broker> -t "gunshot/+/health"
-```
-
-System metrics are published every 5 seconds including:
-- CPU temperature and usage
-- Memory usage
-- Disk space
-- Audio buffer health
-- Detection statistics
-
-## Development
-
-### Project Structure
-
-```
-gunshot-detection-system/
+```text
+gds/
+├── main.py                 # entry point
 ├── src/
-│   ├── core/           # Event bus, base classes
-│   ├── audio/          # Audio sources
-│   ├── processing/     # Signal processing nodes
-│   ├── detection/      # Detection algorithms
-│   ├── output/         # Output nodes (MQTT, etc)
-│   ├── sensors/        # GPS, environmental sensors
-│   ├── monitoring/     # System monitoring
-│   └── config/         # Configuration management
-├── examples/           # Example configs
-├── systemd/            # Service files
-├── tests/              # Unit tests
-└── docs/               # Documentation
+│   ├── core/               # event bus, logging
+│   ├── audio/              # audio sources and pipeline nodes
+│   ├── processing/         # signal processing (HPF, gain, etc.)
+│   ├── detection/          # detection algorithms (Aubio, threshold)
+│   ├── output/             # MQTT output
+│   ├── sensors/            # GPS, environmental sensors
+│   ├── monitoring/         # system monitoring (not yet implemented)
+│   └── config/             # configuration management
+├── scripts/
+│   ├── setup_dev.py        # one-command dev setup
+│   ├── trilateration_server.py  # central positioning server
+│   └── update_requirements.py  # regenerate requirements files
+├── tests/                  # pytest suite
+├── tools/                  # diagnostic tools (gps_test.py, env_test.py)
+├── examples/               # config.example.yaml
+└── docs/                   # documentation
 ```
 
-### Running Tests
+## Documentation
 
-```bash
-pytest tests/
-```
-
-### Code Formatting
-
-```bash
-black src/
-flake8 src/
-```
+| Doc | Contents |
+| --- | -------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, event bus, MQTT topics, trilateration algorithm |
+| [docs/SETUP.md](docs/SETUP.md) | Hardware wiring, GPS/PPS, sensors, fleet deployment |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Testing guide, platform abstraction, security audit |
+| [docs/STATUS.md](docs/STATUS.md) | Component status, roadmap, future features |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ## Troubleshooting
 
-### Audio Issues
+**Audio device not found:**
 
-Check ALSA configuration:
 ```bash
-arecord -l
+arecord -l                   # list ALSA devices
 cat /proc/asound/cards
 ```
 
-Increase buffer size if getting underruns.
+**GPS not getting fix:**
 
-### GPS Issues
-
-Check gpsd is running:
 ```bash
-sudo systemctl status gpsd
-cgps -s
+cgps -s                      # terminal monitor
+python tools/gps_test.py --check
 ```
 
-Ensure antenna has clear sky view.
+Ensure antenna has clear sky view; first fix takes 5–15 minutes cold start.
 
-### High CPU Usage
+**MQTT connection issues:**
 
-- Reduce `audio.buffer_size`
-- Increase detection `hop_size`
-- Disable unused detectors
-
-### Network Issues
-
-Check MQTT broker connectivity:
 ```bash
 mosquitto_sub -h <broker> -t '#' -v
 ```
 
+**High CPU usage:** Increase `audio.buffer_size`, increase detection `hop_size`, disable unused detectors.
+
 ## License
 
-MIT License - see LICENSE file
+MIT License — see [LICENSE](LICENSE)
 
 ## Contributing
 
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Submit a pull request
-
-## Support
-
-- GitHub Issues: https://github.com/yourusername/gunshot-detection-system/issues
-- Documentation: https://github.com/yourusername/gunshot-detection-system/wiki
-
-## Acknowledgments
-
-- Aubio library for onset detection
-- Meshtastic for mesh networking
-- The open source community
+See [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome.

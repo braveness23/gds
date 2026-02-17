@@ -82,7 +82,7 @@ pytest
 
 ### System Dependencies
 
-Some features require system packages. See [SYSTEM_DEPENDENCIES.md](docs/SYSTEM_DEPENDENCIES.md) for details.
+Some features require system packages. See [docs/SETUP.md](docs/SETUP.md) for details.
 
 **For audio/GPS testing:**
 - Raspberry Pi OS or Linux with ALSA/PortAudio
@@ -106,8 +106,7 @@ Some features require system packages. See [SYSTEM_DEPENDENCIES.md](docs/SYSTEM_
 
 - Check [Issues](https://github.com/braveness23/gds/issues) for open tasks
 - Look for issues tagged `good-first-issue` or `help-wanted`
-- Review [FEATURES.md](docs/FEATURES.md) for planned features
-- Check [FUTURE_FEATURES.md](docs/FUTURE_FEATURES.md) for ideas
+- Review [docs/STATUS.md](docs/STATUS.md) for planned features and future ideas
 
 ---
 
@@ -356,7 +355,7 @@ For major changes:
 
 - [README.md](README.md) - Project overview and quick start
 - [docs/](docs/) - Detailed guides for setup, deployment, testing
-- [CLAUDE.md](.github/CLAUDE.md) - AI assistant instructions (shows project conventions)
+- [CLAUDE.md](CLAUDE.md) - AI assistant instructions (shows project conventions)
 
 ### Community
 
@@ -451,6 +450,6 @@ By contributing to this project, you agree that your contributions will be licen
 
 - Open an issue with the `question` label
 - Check [docs/](docs/) for detailed guides
-- Review [CLAUDE.md](.github/CLAUDE.md) for project conventions
+- Review [CLAUDE.md](CLAUDE.md) for project conventions
 
 Thank you for contributing!
