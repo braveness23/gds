@@ -10,7 +10,7 @@ help:
 	@echo "  make service     - Install and start systemd service"
 	@echo "  make deploy      - Deploy to remote Pi (set PI_HOST=user@host)"
 	@echo "  make format      - Format code with black"
-	@echo "  make lint        - Run flake8 linter"
+	@echo "  make lint        - Run ruff linter"
 
 install:
 	@echo "Installing dependencies..."
@@ -72,5 +72,5 @@ format:
 	python -m black src/ tests/ scripts/
 
 lint:
-	@echo "Running flake8..."
-	python -m flake8 src/ tests/ scripts/
+	@echo "Running ruff..."
+	python -m ruff check src/ tests/ scripts/
