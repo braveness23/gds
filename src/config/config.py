@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -12,6 +13,20 @@ logger = logging.getLogger(__name__)
 
 class Config:
     """Configuration management with file loading"""
+
+    # Environment variable → config path mappings.
+    # These override any value from the config file. Format: GDS_<NAME>=value
+    _ENV_MAP = {
+        "GDS_NODE_ID": "system.node_id",
+        "GDS_MQTT_BROKER": "output.mqtt.broker",
+        "GDS_MQTT_PORT": "output.mqtt.port",
+        "GDS_MQTT_USERNAME": "output.mqtt.username",
+        "GDS_MQTT_PASSWORD": "output.mqtt.password",
+        "GDS_MQTT_USE_TLS": "output.mqtt.use_tls",
+        "GDS_MQTT_CA_CERT": "output.mqtt.tls_ca_cert",
+        "GDS_REMOTE_MQTT_USERNAME": "remote_config.mqtt.username",
+        "GDS_REMOTE_MQTT_PASSWORD": "remote_config.mqtt.password",
+    }
 
     def __init__(self, config_path: Optional[str] = None):
         self.config_path = config_path
@@ -30,6 +45,26 @@ class Config:
             ) as e:
                 logger.warning(f"Failed to load config from {config_path}: {e}")
                 logger.info("Using default configuration")
+
+        self._apply_env_overrides()
+
+    def _apply_env_overrides(self):
+        """Apply environment variable overrides (highest priority, after file load)."""
+        for env_var, config_path in self._ENV_MAP.items():
+            value = os.environ.get(env_var)
+            if value is not None:
+                # Coerce to int for port-like keys
+                if config_path.endswith(".port"):
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        logger.warning(f"{env_var}: expected integer, got {value!r} — ignoring")
+                        continue
+                # Coerce "true"/"false" strings to bool
+                elif config_path.endswith("use_tls") or config_path.endswith("tls_insecure"):
+                    value = value.lower() in ("1", "true", "yes")
+                self.set(config_path, value)
+                logger.debug(f"Config override from env: {env_var} → {config_path}")
 
     def _default_config(self) -> Dict[str, Any]:
         """Default configuration"""
