@@ -1,5 +1,21 @@
 # Gunshot Detection System - Example Configuration
 # Copy this file to config.yaml and customize for your setup
+#
+# CREDENTIALS — never put real passwords in config.yaml.
+# Use environment variables instead (they take priority over this file):
+#
+#   GDS_NODE_ID              system.node_id
+#   GDS_MQTT_BROKER          output.mqtt.broker
+#   GDS_MQTT_PORT            output.mqtt.port
+#   GDS_MQTT_USERNAME        output.mqtt.username
+#   GDS_MQTT_PASSWORD        output.mqtt.password
+#   GDS_MQTT_USE_TLS         output.mqtt.use_tls  (true/false)
+#   GDS_MQTT_CA_CERT         output.mqtt.tls_ca_cert
+#   GDS_REMOTE_MQTT_USERNAME remote_config.mqtt.username
+#   GDS_REMOTE_MQTT_PASSWORD remote_config.mqtt.password
+#
+# Example (Raspberry Pi): add to /etc/environment or ~/.bashrc:
+#   export GDS_MQTT_PASSWORD="your-password"
 
 system:
   node_id: "pi_gunshot_001" # CHANGE THIS - Must be unique for each node
@@ -86,8 +102,7 @@ output:
     port: 1883
     topic: "gunshot/detections"
     qos: 1 # 0=fast, 1=reliable, 2=guaranteed
-    # username: your_username # Uncomment if broker requires auth
-    # password: your_password
+    # username/password: use GDS_MQTT_USERNAME / GDS_MQTT_PASSWORD env vars instead
 
   # File Logger - Always keep local logs
   file_logger:
