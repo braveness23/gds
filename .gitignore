@@ -54,6 +54,23 @@ logs/
 htmlcov/
 .tox/
 
+# Project artifacts to ignore (added for public release prep)
+.venv/
+venv/
+.venv/*
+.venv/**
+__pycache__/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+.mypy_cache/
+.env
+.env.*
+.cache/
+/.pytest_cache/
+/.venv/
+
 # Models (large files)
 *.pth
 *.pt
