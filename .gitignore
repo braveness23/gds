@@ -1,33 +1,40 @@
 # Python
 __pycache__/
+# Python compiled / bytecode
+__pycache__/
 *.py[cod]
 *$py.class
+
+# C extensions
 *.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-venv/
+
+# Virtual environments
 .venv/
+venv/
 env/
 ENV/
 
-# Configuration (contains sensitive info)
+# Python packaging / build
+.Python
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+sdist/
+wheels/
+parts/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Config (may contain credentials)
 config.yaml
 *.key
 *.pem
+.env
+.env.*
 
 # Logs
 *.log
@@ -54,22 +61,10 @@ logs/
 htmlcov/
 .tox/
 
-# Project artifacts to ignore (added for public release prep)
-.venv/
-venv/
-.venv/*
-.venv/**
-__pycache__/
-.pytest_cache/
-dist/
-build/
-*.egg-info/
+# Caches
 .mypy_cache/
-.env
-.env.*
+.ruff_cache/
 .cache/
-/.pytest_cache/
-/.venv/
 
 # Models (large files)
 *.pth
@@ -83,18 +78,13 @@ build/
 *.ipynb
 
 # System
-.cache/
 *.pid
 
 # Tool outputs (generated analysis files)
 tools/*.csv
 tools/*.txt
 tools/*.png
-tools/_scan_prints.py
-tools/scan_prints_exclude_venv.py
 
 # Analysis output directories
 peaks/
-
-# Ruff cache
-.ruff_cache/
+tools/*.csv
