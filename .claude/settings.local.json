@@ -8,7 +8,16 @@
       "Bash(pre-commit run:*)",
       "Bash(echo:*)",
       "Bash(python -m pre_commit run:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(cmd //c \"wsl -d Ubuntu-20.04 -- ls /mnt/e/Gits/github.com/braveness23/gds/.venv/bin/ | grep -E ''ruff|flake''\")",
+      "Bash(git checkout:*)",
+      "Bash(./.venv/bin/pre-commit run:*)",
+      "Bash(./venv/bin/python:*)",
+      "Bash(./.venv/bin/python:*)",
+      "Bash(./.venv/bin/python3 -m pip:*)",
+      "Bash(source:*)",
+      "Bash(pre-commit:*)"
     ]
   }
 }
