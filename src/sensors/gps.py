@@ -350,6 +350,45 @@ class StaticLocationProvider:
 
 
 class SerialGPSReader(BaseGPSDevice[GPSData]):
+    """
+    GPS reader using serial NMEA sentences.
+
+    This provides position data by directly reading NMEA sentences from a
+    serial GPS device (e.g., USB GPS dongle).
+    """
+
+    def __init__(
+        self,
+        device: str,
+        baudrate: int = 9600,
+        update_interval: float = 1.0,
+        event_bus=None,
+    ):
+        """
+        Initialize serial GPS reader.
+
+        Args:
+            device: Serial device path (e.g., '/dev/ttyUSB0', '/dev/ttyACM0')
+            baudrate: Serial baud rate (default 9600, common: 4800, 9600, 38400, 115200)
+            update_interval: How often to poll GPS (seconds)
+            event_bus: Event bus for publishing position updates
+        """
+        super().__init__(
+            update_interval=update_interval,
+            event_bus=event_bus,
+            event_type=EventType.SYSTEM,
+            sensor_name="SerialGPSReader",
+        )
+
+        self.device = device
+        self.baudrate = baudrate
+        self.serial = None
+
+        # GPS-specific statistics
+        self.stats["positions_read"] = 0
+        self.stats["no_fix_count"] = 0
+        self.stats["last_fix_time"] = None
+
     def _connect(self):
         if serial is None or pynmea2 is None:
             raise ImportError("pyserial and pynmea2 are required for SerialGPSReader")
