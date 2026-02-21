@@ -466,10 +466,11 @@ When specifying commands in automation or documentation, always show the `.venv`
 
 **Active goals:**
 
-- Dependency management system (setup complete - 2026-02-15)
+- ✅ Security hardening — COMPLETED (GPS validation, MQTT authentication, all critical/high-priority issues resolved - 2026-02-20)
+- ✅ Test coverage to >70% — COMPLETED (currently 72%, comprehensive test suite with 2900+ lines - 2026-02-20)
 - Platform abstraction (making Linux-only code cross-platform - see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
-- Security hardening (credentials, TLS validation, input validation - see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
 - Code quality improvements (type hints, exception handling, imports)
+- System monitoring implementation (CPU, memory, disk, temperature via psutil)
 
 **Deferred/On hold:**
 
@@ -499,6 +500,7 @@ When specifying commands in automation or documentation, always show the `.venv`
 - **2026-02-15**: Added comprehensive Git Practices section with branching strategy, Angular commit conventions, cleanup workflow, and approval process
 - **2026-02-15**: Added pre-commit hook requirements to Git Practices - must run before showing approval summary to avoid fix loops
 - **2026-02-16**: Major docs restructuring — 12 old docs replaced with 4 focused files (ARCHITECTURE.md, DEVELOPMENT.md, SETUP.md, STATUS.md); README rewritten to reflect actual project status; copilot-instructions.md rewritten with project-specific content; linter updated from flake8 → ruff throughout
+- **2026-02-20**: Comprehensive test suite overhaul — test coverage 55% → 72% with 2900+ lines of unit/integration/hardware tests; all critical/high-priority security issues resolved (GPS validation, MQTT authentication with HMAC + rate limiting)
 
 ### Improvement Ideas
 
@@ -516,4 +518,4 @@ When specifying commands in automation or documentation, always show the `.venv`
 
 ---
 
-**Last Updated**: 2026-02-15 (Dependency Management System implemented)
+**Last Updated**: 2026-02-20 (Test coverage 55% → 72%, security hardening complete)

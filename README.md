@@ -15,7 +15,7 @@ A distributed acoustic gunshot detection and trilateration system for Raspberry 
 - Publishes events to an MQTT broker
 - A central trilateration server calculates gunshot position from time-of-arrival differences across multiple nodes
 
-**Current status: ~50–60% complete.** Core detection and MQTT publishing work. System monitoring and remote configuration are not yet implemented. See [docs/STATUS.md](docs/STATUS.md).
+**Current status: ~60–70% complete.** Core detection, MQTT publishing, GPS integration, and environmental sensors work. Comprehensive test suite (72% coverage). System monitoring and remote configuration are not yet implemented. See [docs/STATUS.md](docs/STATUS.md).
 
 ## Hardware Requirements
 

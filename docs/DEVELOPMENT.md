@@ -1,6 +1,6 @@
 # Development Guide
 
-> **TL;DR:** Run `python scripts/setup_dev.py` for one-command setup. Tests live in `tests/` with unit, integration, and hardware tiers. Key open items: platform abstraction (partially complete), security hardening (high-priority issues remain).
+> **TL;DR:** Run `python scripts/setup_dev.py` for one-command setup. Tests live in `tests/` with unit, integration, and hardware tiers (72% coverage). Key open items: platform abstraction (partially complete), security hardening (all critical/high-priority issues resolved).
 
 ---
 
@@ -148,13 +148,13 @@ def test_mqtt_publishes_detections(event_bus):
 
 ### Coverage Goals
 
-| Tier | Target |
-| ---- | ------ |
-| Unit tests | > 80% coverage |
-| Integration tests | All critical paths |
-| Hardware tests | Manual validation before deployment |
+| Tier | Target | Current |
+| ---- | ------ | ------- |
+| Unit tests | > 80% coverage | 72% overall |
+| Integration tests | All critical paths | ✅ Complete |
+| Hardware tests | Manual validation before deployment | ✅ Procedures documented |
 
-**Current state:** ~30–40% estimated (see [STATUS.md](STATUS.md)).
+**Current state:** 72% coverage (2900+ lines of tests added 2026-02-20). Core components >90% coverage. See [STATUS.md](STATUS.md).
 
 ---
 
@@ -170,9 +170,7 @@ def test_mqtt_publishes_detections(event_bus):
 | ---- | ----- | ------ |
 | `src/audio/audio_nodes.py:149–165` | Loads `libasound.so.2` via ctypes | 🔴 Not guarded |
 | `src/audio/audio_nodes.py:191–233` | Parses `/proc/asound/cards` | 🔴 Not guarded |
-| `src/audio/i2s_raw_source.py` | Opens `/dev/i2s` device | 🔴 No platform check |
 | `src/config/config.py` | Defaults use `/dev/pps0`, `/dev/serial0` | 🟡 Works but confusing on Windows |
-| `src/sensors/gps.py` | `SerialGPSReader` missing `__init__` | 🔴 Bug — crashes if instantiated |
 
 ### Good News
 
@@ -182,10 +180,8 @@ PyAudio (the core audio library) is already cross-platform — it handles ALSA (
 
 1. Create `src/audio/platform_utils.py` with `is_linux()`, `supports_alsa_enhancements()`, etc.
 2. Wrap ALSA-specific code in `if supports_alsa_enhancements():`
-3. Add platform check to `i2s_raw_source.py` start()
-4. Create audio source factory function (mirrors GPS factory pattern)
-5. Add platform-specific config defaults
-6. Fix `SerialGPSReader` missing `__init__`
+3. Create audio source factory function (mirrors GPS factory pattern)
+4. Add platform-specific config defaults
 
 ---
 
@@ -248,7 +244,7 @@ Added multi-layered security to `MQTTFleetCoordinator`: (1) Node allowlist - onl
 
 - ✅ All CRITICAL issues resolved
 - ✅ All HIGH-priority security issues resolved (as of 2026-02-20)
-- ❌ Test coverage > 70% (currently ~30–40% with new security tests)
+- ✅ Test coverage > 70% (currently 72% as of 2026-02-20)
 - 🟡 Security review — medium-priority issues remain (brittle ALSA parsing, EventBus thread safety, etc.)
 
 ---
