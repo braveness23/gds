@@ -1,40 +1,33 @@
 # Python
 __pycache__/
-# Python compiled / bytecode
-__pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
-
-# Python packaging / build
 .Python
 build/
-dist/
 develop-eggs/
+dist/
 downloads/
 eggs/
 .eggs/
-sdist/
-wheels/
+lib/
+lib64/
 parts/
+sdist/
+var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+venv/
+.venv/
+env/
+ENV/
 
-# Config (may contain credentials)
+# Configuration (contains sensitive info)
 config.yaml
 *.key
 *.pem
-.env
-.env.*
 
 # Logs
 *.log
@@ -61,11 +54,6 @@ logs/
 htmlcov/
 .tox/
 
-# Caches
-.mypy_cache/
-.ruff_cache/
-.cache/
-
 # Models (large files)
 *.pth
 *.pt
@@ -78,13 +66,18 @@ htmlcov/
 *.ipynb
 
 # System
+.cache/
 *.pid
 
 # Tool outputs (generated analysis files)
 tools/*.csv
 tools/*.txt
 tools/*.png
+tools/_scan_prints.py
+tools/scan_prints_exclude_venv.py
 
 # Analysis output directories
 peaks/
-tools/*.csv
+
+# Ruff cache
+.ruff_cache/
