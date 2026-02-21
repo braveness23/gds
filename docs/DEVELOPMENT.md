@@ -191,7 +191,7 @@ PyAudio (the core audio library) is already cross-platform — it handles ALSA (
 
 ## Security Audit
 
-> **Audit date:** 2026-02-15 | **Updated:** 2026-02-17 | **Status:** Critical issues resolved; high-priority issues remain
+> **Audit date:** 2026-02-15 | **Updated:** 2026-02-20 | **Status:** ✅ All critical and high-priority issues resolved
 
 ### ~~🔴 Critical — Fix Before Any Deployment~~ ✅ All Resolved
 
@@ -204,15 +204,15 @@ PyAudio (the core audio library) is already cross-platform — it handles ALSA (
 `MQTTOutputNode` no longer falls back to `ssl.CERT_NONE` on TLS setup failure — it logs and raises.
 `MQTTFleetCoordinator` now accepts `tls_ca_cert` / `tls_insecure` and uses the same verified-by-default TLS logic.
 
-### 🟠 High — Fix This Sprint
+### ~~🟠 High — Fix This Sprint~~ ✅ All Resolved
 
-#### 3. No GPS coordinate validation (`src/sensors/gps.py:558–560`)
+#### ~~3. No GPS coordinate validation~~ ✅ Fixed
 
-Latitude/longitude from config are not validated (range, type). Default of `(0, 0)` silently places the node in the Gulf of Guinea.
+Added `validate_coordinates()` function with type and range validation. Validates latitude (-90 to 90), longitude (-180 to 180), and altitude. Rejects default (0,0) coordinates — requires explicit configuration. Validation enforced in both factory function and `StaticGPSDevice.__init__()` for defense-in-depth. 14 unit tests added. (Commit 3cfbcd5, 2026-02-20)
 
-#### 4. MQTT Fleet Coordinator has no node identity verification
+#### ~~4. MQTT Fleet Coordinator has no node identity verification~~ ✅ Fixed
 
-`MQTTFleetCoordinator` accepts messages from anyone. No rate limiting on commands.
+Added multi-layered security to `MQTTFleetCoordinator`: (1) Node allowlist - only accept messages from authorized node_ids, (2) HMAC-SHA256 message authentication with shared secret, (3) Per-node rate limiting (configurable window and max messages). All security checks enforced in `_on_message()` before processing. 18 unit tests added. (Commit 00a2ef6, 2026-02-20)
 
 ### 🟡 Medium — Fix This Month
 
@@ -226,6 +226,8 @@ Latitude/longitude from config are not validated (range, type). Default of `(0, 
 
 ### ✅ Resolved
 
+- **GPS coordinate validation** — `validate_coordinates()` with type/range checks; rejects default (0,0) (commit 3cfbcd5, 2026-02-20)
+- **MQTT Fleet Coordinator authentication** — node allowlist, HMAC-SHA256, rate limiting (commit 00a2ef6, 2026-02-20)
 - MQTT topic validation — validated in `MQTTOutputNode.__init__`
 - Broad exception handling — narrowed across 7 core source files (commit 1b08273)
 - TLS cert verification — removed insecure fallback; `MQTTFleetCoordinator` now has proper TLS options
@@ -239,12 +241,15 @@ Latitude/longitude from config are not validated (range, type). Default of `(0, 
 - ✅ Hardcoded credentials — `config.yaml` removed; env vars in use
 - ✅ TLS validation — no insecure fallback
 - ✅ Secrets management — env var injection at startup
+- ✅ GPS coordinate validation — rejects invalid coordinates and dangerous defaults
+- ✅ MQTT authentication — node allowlist, HMAC signing, rate limiting
 
 **Production-ready when:**
 
 - ✅ All CRITICAL issues resolved
-- ❌ Test coverage > 70% (currently ~25–35%)
-- ❌ Security review passed (high-priority issues remain)
+- ✅ All HIGH-priority security issues resolved (as of 2026-02-20)
+- ❌ Test coverage > 70% (currently ~30–40% with new security tests)
+- 🟡 Security review — medium-priority issues remain (brittle ALSA parsing, EventBus thread safety, etc.)
 
 ---
 
