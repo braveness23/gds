@@ -24,6 +24,41 @@ except (ImportError, ModuleNotFoundError) as e:
     pynmea2 = None
 
 
+def validate_coordinates(latitude: float, longitude: float, altitude: float = 0.0) -> None:
+    """
+    Validate GPS coordinates are within valid ranges.
+
+    Args:
+        latitude: Latitude in decimal degrees (-90 to 90)
+        longitude: Longitude in decimal degrees (-180 to 180)
+        altitude: Altitude in meters (any value allowed, but typically -500 to 10000)
+
+    Raises:
+        TypeError: If coordinates are not numeric
+        ValueError: If coordinates are out of valid range
+    """
+    # Type validation
+    if not isinstance(latitude, (int, float)):
+        raise TypeError(f"Latitude must be numeric, got {type(latitude).__name__}")
+    if not isinstance(longitude, (int, float)):
+        raise TypeError(f"Longitude must be numeric, got {type(longitude).__name__}")
+    if not isinstance(altitude, (int, float)):
+        raise TypeError(f"Altitude must be numeric, got {type(altitude).__name__}")
+
+    # Range validation
+    if not -90.0 <= latitude <= 90.0:
+        raise ValueError(f"Latitude must be between -90 and 90 degrees, got {latitude}")
+    if not -180.0 <= longitude <= 180.0:
+        raise ValueError(f"Longitude must be between -180 and 180 degrees, got {longitude}")
+
+    # Sanity check for altitude (warn but don't fail)
+    if altitude < -500.0 or altitude > 10000.0:
+        logger.warning(
+            f"Altitude {altitude}m is outside typical range (-500 to 10000m). "
+            f"Verify this is correct."
+        )
+
+
 class GPSReader(BaseGPSDevice[GPSData]):
     """
     GPS reader using gpsd daemon.
@@ -494,8 +529,15 @@ def create_gps_reader(config: dict, event_bus=None):
     lon = location_config.get("longitude", 0.0)
     alt = location_config.get("altitude", 0.0)
 
+    # Security: Validate coordinates before use
     if lat == 0.0 and lon == 0.0:
-        logger.warning("Using default location (0, 0)")
-        logger.info("  Set location in config.yaml under 'location' section")
+        raise ValueError(
+            "GPS coordinates not configured. "
+            "Set 'location.latitude' and 'location.longitude' in config.yaml. "
+            "Default (0, 0) is not allowed for security reasons."
+        )
+
+    # Validate coordinate ranges and types
+    validate_coordinates(lat, lon, alt)
 
     return StaticGPSDevice(lat, lon, alt)
