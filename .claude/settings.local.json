@@ -17,7 +17,11 @@
       "Bash(./.venv/bin/python:*)",
       "Bash(./.venv/bin/python3 -m pip:*)",
       "Bash(source:*)",
-      "Bash(pre-commit:*)"
+      "Bash(pre-commit:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(./.venv/Scripts/python:*)",
+      "Bash(wsl bash:*)"
     ]
   }
 }
