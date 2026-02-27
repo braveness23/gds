@@ -75,7 +75,7 @@ class SystemMonitorNode:
                             disk_percent, cpu_temp (optional)
             enabled: Whether monitoring is enabled
         """
-        self.logger = logging.getLogger("SystemMonitor")
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.event_bus = event_bus
         self.node_id = node_id
         self.update_interval = update_interval
@@ -163,6 +163,7 @@ class SystemMonitorNode:
                         self.stats["alerts_triggered"] += 1
 
             except Exception as e:
+                # Intentionally broad: psutil calls can raise various platform-specific exceptions
                 self.logger.error(f"Error collecting metrics: {e}")
                 self.stats["errors"] += 1
 
@@ -290,6 +291,16 @@ class SystemMonitorNode:
             **self.stats,
         }
 
+    def __enter__(self):
+        """Context manager entry."""
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.stop()
+        return False
+
     def get_current_metrics(self) -> Optional[SystemMetrics]:
         """Get current metrics (synchronous call)."""
         if not self._psutil_available:
@@ -298,5 +309,6 @@ class SystemMonitorNode:
         try:
             return self._collect_metrics()
         except Exception as e:
+            # Intentionally broad: psutil calls can raise various platform-specific exceptions
             self.logger.error(f"Error collecting current metrics: {e}")
             return None
