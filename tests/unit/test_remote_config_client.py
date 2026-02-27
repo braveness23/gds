@@ -109,8 +109,8 @@ class TestRemoteConfigClient:
         """Test credentials are set from config."""
         default_config.set("output.mqtt.username", "testuser")
         default_config.set("output.mqtt.password", "testpass")
-        
-        client._load_mqtt_config()
+
+        client.mqtt_config = client._load_mqtt_config()
         client._connect()
         
         mock_mqtt.username_pw_set.assert_called_with("testuser", "testpass")
@@ -196,21 +196,20 @@ class TestRemoteConfigClient:
         client.start()
         client.connected = True
         client.client = mock_mqtt
-        
+
         # Create a pending change
         client.config_manager.pending_change = MagicMock()
         client.config_manager.pending_change.change_id = "test-123"
         client.config_manager.pending_change.requires_confirmation = True
-        
+
         payload = {
             "command": "confirm",
             "change_id": "test-123",
         }
-        
-        client._handle_confirm(payload)
-        
-        # Should confirm
-        assert client.config_manager.pending_change.confirmed
+
+        with patch.object(client.config_manager, "confirm_current_config") as mock_confirm:
+            client._handle_confirm(payload)
+            assert mock_confirm.called
 
     def test_handle_rollback(self, client, mock_mqtt):
         """Test handling rollback command."""
@@ -317,13 +316,11 @@ class TestRemoteConfigClient:
         client._running = True
         client.config_manager = MagicMock()
         client.config_manager.check_and_rollback_if_needed.return_value = None
-        
-        # Run one iteration
-        with patch("time.sleep") as mock_sleep:
-            mock_sleep.side_effect = [None, Exception("stop")]
-            try:
-                client._monitor_loop()
-            except Exception:
-                pass
-        
+
+        def stop_after_first(*args):
+            client._running = False
+
+        with patch("time.sleep", side_effect=stop_after_first):
+            client._monitor_loop()
+
         assert client.config_manager.check_and_rollback_if_needed.called

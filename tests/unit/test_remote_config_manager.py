@@ -2,8 +2,7 @@
 
 import json
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -14,7 +13,6 @@ from src.remote_config.manager import (
     ConfigManager,
     PendingChange,
 )
-from src.remote_config.safety import ConfigRiskLevel, ValidationResult, ValidationStatus
 
 
 class TestConfigManager:
@@ -72,13 +70,17 @@ class TestConfigManager:
 
     def test_apply_change_with_rollback(self, manager):
         """Test that changes can be rolled back."""
+        from copy import deepcopy
         original_value = manager.config.get("system.log_level")
+        original_config = deepcopy(manager.config.data)
         changes = {"system.log_level": "DEBUG"}
-        
-        # Apply and then rollback
+
+        # Apply (auto-confirms simple change, updates last_known_good)
         manager.apply_changes(changes)
-        result = manager._rollback("test rollback")
-        
+
+        # Roll back by explicitly providing the pre-change config
+        result = manager._rollback("test rollback", target_config=original_config)
+
         assert result.status == ConfigChangeStatus.ROLLED_BACK
         assert manager.config.get("system.log_level") == original_value
 
