@@ -316,9 +316,10 @@ class SafetyChecker:
                 
         # Thresholds should be reasonable
         if "threshold" in path:
-            if "db" in path and (value < -100 or value > 0):
-                return f"{path}: dB threshold should be between -100 and 0"
-            if path.endswith("threshold") and (value < 0 or value > 1):
+            if "db" in path or "silence_threshold" in path:
+                if value < -100 or value > 0:
+                    return f"{path}: dB threshold should be between -100 and 0"
+            elif path.endswith("threshold") and (value < 0 or value > 1):
                 return f"{path}: threshold should be between 0.0-1.0"
                 
         return None

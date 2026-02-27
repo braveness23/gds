@@ -9,7 +9,6 @@ Manages configuration state with:
 
 import json
 import logging
-import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -216,7 +215,7 @@ class ConfigManager:
             # Phase 2: Test if needed (CRITICAL communication settings)
             if needs_test and self.test_connection_callback:
                 self.pending_change.status = ConfigChangeStatus.TESTING
-                self.logger.info(f"Testing new configuration before apply...")
+                self.logger.info("Testing new configuration before apply...")
                 
                 # Build test config
                 test_config = deepcopy(current_config)
@@ -252,7 +251,11 @@ class ConfigManager:
                 self.config.set(path, value)
             
             self.pending_change.status = ConfigChangeStatus.APPLIED
-            
+
+            # Save config to disk
+            if self.config.config_path:
+                self.config.save()
+
             # Phase 4: Wait for confirmation if needed
             if needs_confirmation:
                 self.logger.info(
@@ -350,13 +353,15 @@ class ConfigManager:
         
         return self._rollback(
             "Manual rollback to last known good",
-            target_config=self.last_known_good
+            target_config=self.last_known_good,
+            explicit=True,
         )
     
     def _rollback(
         self,
         reason: str,
         target_config: Optional[Dict[str, Any]] = None,
+        explicit: bool = False,
     ) -> ConfigChangeResult:
         """
         Rollback configuration.
@@ -390,7 +395,7 @@ class ConfigManager:
             self._cleanup_pending()
             
             result = ConfigChangeResult(
-                success=False,
+                success=explicit,
                 status=ConfigChangeStatus.ROLLED_BACK,
                 message=f"Rolled back: {reason}",
                 previous_config=target_config,
@@ -448,10 +453,7 @@ class ConfigManager:
                     
                     if consecutive_successes >= required_successes - 1:
                         return True
-            else:
-                # No health check callback - just wait for timeout
-                return True
-        
+
         return False
     
     def _apply_to_dict(self, target: Dict, changes: Dict[str, Any]):
