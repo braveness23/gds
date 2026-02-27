@@ -79,10 +79,49 @@
 
 ### Code Style
 
-- [To be filled in: formatting preferences, naming conventions, etc.]
 - **Over-engineering**: Avoid it. Make only changes that are directly requested or clearly necessary
 - **Comments**: Only add where logic isn't self-evident. Don't add comments to code you didn't change
 - **Error handling**: Only validate at system boundaries. Don't add error handling for scenarios that can't happen
+
+### Established Patterns (match existing code)
+
+**Logging**
+- Instance-level only: `self.logger = logging.getLogger(self.__class__.__name__)`
+- No module-level `logger = logging.getLogger(__name__)`
+
+**Lifecycle (`start`/`stop`)**
+- Guard: `if self.running: return` at top of `start()`
+- Thread: `threading.Thread(target=..., daemon=True)`
+- Stop: set `self.running = False`, then `thread.join(timeout=N)`
+
+**Exception handling**
+- Broad `except Exception` is allowed only with an explanatory comment: `# Intentionally broad: <reason>`
+- Never silently swallow — always log
+
+**Stats**
+- Track as `self.stats = {...}` dict
+- Expose via `get_stats() -> Dict[str, Any]`
+
+**Event bus**
+- Use existing `EventType` enum and `Event` dataclass from `src/core/event_bus.py`
+- Don't invent new event formats or bypass the bus
+
+**Base classes**
+- Long-running components with polling: extend `BaseSensor` or follow its pattern exactly
+- Context manager (`__enter__`/`__exit__`) on any class that has `start()`/`stop()`
+
+**Imports**
+- Order: stdlib → third-party → local (`src.*`), each group alphabetically sorted
+
+**Constructor signatures**
+- Order: required params → optional params with defaults → `event_bus=None` last
+
+**Public/private**
+- Internal methods: `_single_underscore` prefix, no exceptions
+
+**Docstrings**
+- Public methods: one-line summary + `Args:` / `Returns:` sections when non-obvious
+- No prose-heavy AI-generated descriptions
 
 ### File Organization
 
