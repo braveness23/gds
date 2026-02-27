@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
 # Wrapper to run the project's Python interpreter inside `./.venv`.
+# Handles Windows (Git Bash) by routing through WSL.
 # Usage: tools/py <args...>
 VENV="$PWD/.venv"
-PY="$VENV/bin/python"
-if [ -x "$PY" ]; then
-  exec "$PY" "$@"
-else
-  echo "Error: .venv not found at $VENV" >&2
-  echo "Create it with: python3 -m venv .venv" >&2
-  exit 2
-fi
+
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        # Windows Git Bash: .venv symlinks only work inside WSL
+        WSL_PATH=$(wslpath -u "$PWD")
+        exec wsl bash -c "cd '$WSL_PATH' && .venv/bin/python $*"
+        ;;
+    *)
+        # Linux / macOS / WSL
+        PY="$VENV/bin/python"
+        if [ -x "$PY" ]; then
+            exec "$PY" "$@"
+        else
+            echo "Error: .venv not found at $VENV" >&2
+            echo "Create it with: python3 -m venv .venv" >&2
+            exit 2
+        fi
+        ;;
+esac

@@ -258,9 +258,21 @@ Post-commit: After making the commit(s), begin the merge-to-main process by show
 - Production on Raspberry Pi uses `.venv`
 - DO NOT install packages globally (no `sudo pip install`)
 
+**Windows (Git Bash / Claude Code shell):**
+
+The `.venv` was created in WSL and its symlinks resolve only in Linux. When running on Windows, **prefix all Python commands with `wsl`**:
+
+```bash
+# Instead of: ./.venv/bin/python ...
+wsl bash -c "cd /mnt/e/Gits/github.com/braveness23/gds && .venv/bin/python ..."
+```
+
+Development and the interactive terminal should be done inside WSL, where `.venv/bin/python` works normally.
+
 **Agent enforcement:**
 
 - All automation, CLI helpers, CI scripts, editors, and assistant actions MUST prefer the explicit interpreter path `./.venv/bin/python`.
+- On Windows (Claude Code / Git Bash): prefix with `wsl bash -c "cd /mnt/e/Gits/github.com/braveness23/gds && ..."`.
 - If an automated script detects that the current Python interpreter is not the project's `.venv`, it should either:
    - fail fast with a clear message instructing the user to run `./.venv/bin/python <command>` or activate the venv, or
    - create `.venv` and install required packages before continuing only if explicitly allowed by the user.
