@@ -3,7 +3,10 @@
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
+
+if TYPE_CHECKING:
+    from tests.mocks.mock_mqtt_broker import MockMQTTBroker
 
 
 @dataclass
@@ -48,6 +51,7 @@ class MockMQTTClient:
         fail_on_connect: bool = False,
         fail_on_publish: bool = False,
         connection_delay: float = 0.0,
+        broker: Optional["MockMQTTBroker"] = None,
     ):
         """
         Initialize mock client.
@@ -58,12 +62,17 @@ class MockMQTTClient:
             fail_on_connect: Simulate connection failure
             fail_on_publish: Simulate publish failure
             connection_delay: Delay before connection succeeds (simulates network latency)
+            broker: Optional shared MockMQTTBroker for routing pub/sub between clients.
+                    When set, publish() routes messages to matching subscribers and
+                    subscribe() registers with the broker. Backwards compatible: when
+                    None (default), behaviour is identical to the original implementation.
         """
         self.client_id = client_id
         self.clean_session = clean_session
         self.fail_on_connect = fail_on_connect
         self.fail_on_publish = fail_on_publish
         self.connection_delay = connection_delay
+        self._broker: Optional["MockMQTTBroker"] = broker
 
         # State
         self.connected = False
@@ -198,6 +207,10 @@ class MockMQTTClient:
         )
         self.published_messages.append(message)
 
+        # Route through shared broker when present (enables pub/sub between clients)
+        if self._broker is not None:
+            self._broker._route(message)
+
         # Trigger on_publish callback
         if self.on_publish:
             mid = len(self.published_messages)
@@ -208,6 +221,8 @@ class MockMQTTClient:
     def subscribe(self, topic: str, qos: int = 0):
         """Subscribe to topic."""
         self.subscriptions.append((topic, qos))
+        if self._broker is not None:
+            self._broker._register_subscription(self, topic)
         # Return (result, mid)
         return (0, len(self.subscriptions))
 

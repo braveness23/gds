@@ -1,6 +1,29 @@
 """Pytest configuration and fixtures for hardware tests."""
 
+import os
+
 import pytest
+
+
+def _gps_device_available(device_path: str) -> bool:
+    """Return True if the GPS serial device file exists."""
+    return os.path.exists(device_path)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def require_hardware(request):
+    """Skip all hardware tests when physical devices are not present.
+
+    Checks GPS serial device existence.  Pass ``--gps-device`` to override
+    the default ``/dev/serial0``.  Run with ``pytest -m hardware`` to execute
+    only on real Raspberry Pi hardware.
+    """
+    gps_device = request.config.getoption("--gps-device")
+    if not _gps_device_available(gps_device):
+        pytest.skip(
+            f"Hardware not available: GPS device '{gps_device}' not found. "
+            "Connect hardware and run with: pytest tests/hardware/"
+        )
 
 
 def pytest_addoption(parser):

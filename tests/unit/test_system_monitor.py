@@ -225,27 +225,27 @@ class TestSystemMonitorMetricsCollection:
 
         assert temp == 55.0
 
-    def test_cpu_temperature_raspberry_pi(self, system_monitor, mock_psutil, tmp_path):
+    def test_cpu_temperature_raspberry_pi(self, system_monitor, mock_psutil, tmp_path, monkeypatch):
         """Test temperature reading from Raspberry Pi thermal zone."""
-        # psutil sensors returns empty, should fall back to thermal zone
         mock_psutil.sensors_temperatures.return_value = {}
 
-        # Create mock thermal zone file
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-            f.write("55000")  # 55.0°C in millidegrees
-            temp_file = f.name
+        # Write a Pi-style thermal zone file in tmp_path
+        thermal_file = tmp_path / "thermal_temp"
+        thermal_file.write_text("55000")  # 55.0°C in millidegrees
 
-        # Temporarily patch the thermal zone path
-        original_path = "/sys/class/thermal/thermal_zone0/temp"
-        with patch("builtins.open", side_effect=lambda path, mode: open(temp_file, mode) if path == original_path else open(path, mode)):
-            temp = system_monitor._get_cpu_temperature()
+        # Redirect the hardcoded path by capturing the real open first to avoid recursion
+        _real_open = open
+        thermal_path = "/sys/class/thermal/thermal_zone0/temp"
 
-        import os
-        os.unlink(temp_file)
+        def patched_open(path, *args, **kwargs):
+            if path == thermal_path:
+                return _real_open(str(thermal_file), *args, **kwargs)
+            return _real_open(path, *args, **kwargs)
 
-        # Can't easily mock file system, just verify method exists
-        assert temp is None or isinstance(temp, (float, int))
+        monkeypatch.setattr("builtins.open", patched_open)
+        temp = system_monitor._get_cpu_temperature()
+
+        assert temp == 55.0
 
     def test_collect_metrics_without_psutil(self, system_monitor):
         """Test that collecting metrics fails without psutil."""

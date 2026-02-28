@@ -217,16 +217,16 @@ class TestConfigRiskLevel:
         assert ConfigRiskLevel.CRITICAL.value == "critical"
 
     def test_risk_order(self):
-        """Test risk level ordering for comparison."""
-        order = [
+        """Test risk levels are defined in ascending severity order."""
+        # String values ("low", "medium", "high", "critical") are not alphabetically
+        # ordered, so we verify the enum definition order instead.
+        expected = [
             ConfigRiskLevel.LOW,
             ConfigRiskLevel.MEDIUM,
             ConfigRiskLevel.HIGH,
             ConfigRiskLevel.CRITICAL,
         ]
-        
-        for i in range(len(order) - 1):
-            assert order[i].value < order[i + 1].value
+        assert list(ConfigRiskLevel) == expected
 
 
 class TestValidationStatus:
