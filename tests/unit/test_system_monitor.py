@@ -150,7 +150,7 @@ class TestSystemMonitorNodeBasics:
 
     def test_initialization_no_psutil(self, event_bus):
         """Test monitor when psutil is not available."""
-        with patch.dict("sys.modules", {}, clear=True):
+        with patch.dict("sys.modules", {"psutil": None}):
             monitor = SystemMonitorNode(
                 event_bus=event_bus,
                 node_id="test_node",
