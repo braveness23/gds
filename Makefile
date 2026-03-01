@@ -1,5 +1,7 @@
 .PHONY: help install test test-unit test-integration test-coverage test-watch clean run service deploy format lint
 
+PY := ./tools/py
+
 help:
 	@echo "Gunshot Detection System - Make Commands"
 	@echo ""
@@ -14,30 +16,30 @@ help:
 
 install:
 	@echo "Installing dependencies..."
-	pip install -r requirements.txt
-	pip install -e .
+	$(PY) -m pip install -r requirements.txt
+	$(PY) -m pip install -e .
 
 test:
 	@echo "Running tests..."
-	python -m pytest tests/ -v
+	$(PY) -m pytest tests/ -v
 
 test-unit:
 	@echo "Running unit tests..."
-	python -m pytest tests/unit/ -v
+	$(PY) -m pytest tests/unit/ -v
 
 test-integration:
 	@echo "Running integration tests..."
-	python -m pytest tests/integration/ -v
+	$(PY) -m pytest tests/integration/ -v
 
 test-coverage:
 	@echo "Running tests with coverage..."
-	python -m pytest tests/unit/ tests/integration/ --cov=src --cov-report=html --cov-report=term-missing
+	$(PY) -m pytest tests/unit/ tests/integration/ --cov=src --cov-report=html --cov-report=term-missing
 	@echo "Coverage report: htmlcov/index.html"
 
 test-watch:
 	@echo "Running tests in watch mode..."
 	@echo "Note: Requires pytest-watch (pip install pytest-watch)"
-	pytest-watch tests/unit/ -- -v
+	$(PY) -m pytest_watch tests/unit/ -- -v
 
 clean:
 	@echo "Cleaning build artifacts..."
@@ -47,7 +49,7 @@ clean:
 
 run:
 	@echo "Starting detector..."
-	python main.py --config examples/config.example.yaml
+	$(PY) main.py --config examples/config.example.yaml
 
 service:
 	@echo "Installing systemd service..."
@@ -69,8 +71,8 @@ endif
 
 format:
 	@echo "Formatting code with black..."
-	python -m black src/ tests/ scripts/
+	$(PY) -m black src/ tests/ scripts/
 
 lint:
 	@echo "Running ruff..."
-	python -m ruff check src/ tests/ scripts/
+	$(PY) -m ruff check src/ tests/ scripts/

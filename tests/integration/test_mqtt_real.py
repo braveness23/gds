@@ -1,6 +1,14 @@
-"""Integration tests for MQTT output system with real broker."""
+"""Integration tests for MQTT output system with real broker.
+
+These tests require a real MQTT broker on localhost:1883.
+Run with: pytest -m real_broker
+
+Start a local broker with:  mosquitto -d
+Or with Docker:             docker run -d -p 1883:1883 eclipse-mosquitto
+"""
 
 import os
+import socket
 import time
 
 import pytest
@@ -8,6 +16,21 @@ import pytest
 from src.config.config import Config
 from src.core.event_bus import DetectionEvent, Event, EventType
 from src.output.mqtt_output import MQTTOutputNode
+
+pytestmark = pytest.mark.real_broker
+
+
+@pytest.fixture(autouse=True, scope="module")
+def require_real_broker():
+    """Skip all tests in this module when no MQTT broker is reachable."""
+    try:
+        sock = socket.create_connection(("localhost", 1883), timeout=1)
+        sock.close()
+    except OSError:
+        pytest.skip(
+            "No MQTT broker on localhost:1883 — "
+            "start with: mosquitto -d"
+        )
 
 
 @pytest.fixture

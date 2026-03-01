@@ -5,11 +5,14 @@ events to a central MQTT broker where they can be consumed by trilateration
 servers, dashboards, and other nodes.
 """
 
+import hashlib
+import hmac
 import json
 import logging
 import threading
 import time
-from typing import Any, Dict, Optional
+from collections import defaultdict, deque
+from typing import Any, Dict, List, Optional
 
 from src.core.event_bus import Event, EventType
 
@@ -377,7 +380,27 @@ class MQTTFleetCoordinator:
         use_tls: bool = False,
         tls_ca_cert: Optional[str] = None,
         tls_insecure: bool = False,
+        allowed_nodes: Optional[List[str]] = None,
+        hmac_secret: Optional[str] = None,
+        rate_limit_window: float = 60.0,
+        rate_limit_max_messages: int = 100,
     ):
+        """
+        Initialize MQTT Fleet Coordinator.
+
+        Args:
+            broker: MQTT broker hostname
+            port: MQTT broker port
+            username: MQTT username (optional)
+            password: MQTT password (optional)
+            use_tls: Enable TLS encryption
+            tls_ca_cert: Path to CA certificate for TLS
+            tls_insecure: Allow insecure TLS (testing only)
+            allowed_nodes: List of authorized node IDs (None = accept all, NOT recommended)
+            hmac_secret: Shared secret for HMAC message authentication (optional but recommended)
+            rate_limit_window: Time window for rate limiting in seconds (default: 60)
+            rate_limit_max_messages: Max messages per node per window (default: 100)
+        """
         self.logger = logging.getLogger("FleetCoordinator")
         self.broker = broker
         self.port = port
@@ -387,6 +410,28 @@ class MQTTFleetCoordinator:
         self.tls_ca_cert = tls_ca_cert
         self.tls_insecure = tls_insecure
 
+        # Security: Node authentication
+        self.allowed_nodes = set(allowed_nodes) if allowed_nodes else None
+        if self.allowed_nodes is None:
+            self.logger.warning(
+                "No node allowlist configured - accepting messages from ANY node_id! "
+                "This is a security risk. Set 'allowed_nodes' parameter."
+            )
+
+        # Security: Message authentication
+        self.hmac_secret = hmac_secret
+        if self.hmac_secret:
+            self.logger.info("HMAC message authentication enabled")
+        else:
+            self.logger.warning(
+                "HMAC authentication disabled - messages not cryptographically verified"
+            )
+
+        # Security: Rate limiting
+        self.rate_limit_window = rate_limit_window
+        self.rate_limit_max_messages = rate_limit_max_messages
+        self.message_timestamps = defaultdict(deque)  # node_id -> deque of timestamps
+
         self.client = None
         self.connected = False
         self.detection_callback = None
@@ -395,6 +440,91 @@ class MQTTFleetCoordinator:
         # Track nodes
         self.active_nodes = {}  # node_id -> last_seen_time
         self.detections = []  # List of all detections
+
+    def _verify_node_allowed(self, node_id: str) -> bool:
+        """
+        Verify node_id is in allowlist.
+
+        Args:
+            node_id: Node identifier to check
+
+        Returns:
+            True if node is allowed (or no allowlist configured), False otherwise
+        """
+        if self.allowed_nodes is None:
+            return True  # No allowlist = accept all (insecure but backward compatible)
+
+        if node_id not in self.allowed_nodes:
+            self.logger.warning(f"Rejected message from unauthorized node: {node_id}")
+            return False
+
+        return True
+
+    def _verify_hmac(self, payload: Dict[str, Any], hmac_signature: Optional[str]) -> bool:
+        """
+        Verify HMAC signature on message payload.
+
+        Args:
+            payload: Message payload dictionary
+            hmac_signature: HMAC signature from message (if present)
+
+        Returns:
+            True if signature valid (or HMAC disabled), False otherwise
+        """
+        if self.hmac_secret is None:
+            return True  # HMAC not configured = skip verification
+
+        if not hmac_signature:
+            self.logger.warning("HMAC enabled but message has no signature - rejecting")
+            return False
+
+        # Canonical JSON for consistent hashing (sorted keys, no whitespace)
+        # Exclude the signature field itself from the signed data
+        payload_copy = {k: v for k, v in payload.items() if k != "hmac"}
+        canonical = json.dumps(payload_copy, sort_keys=True, separators=(",", ":"))
+
+        # Compute HMAC-SHA256
+        expected = hmac.new(
+            self.hmac_secret.encode("utf-8"),
+            canonical.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        if not hmac.compare_digest(expected, hmac_signature):
+            self.logger.warning(f"HMAC verification failed for message: {payload}")
+            return False
+
+        return True
+
+    def _check_rate_limit(self, node_id: str) -> bool:
+        """
+        Check if node has exceeded rate limit.
+
+        Args:
+            node_id: Node identifier
+
+        Returns:
+            True if within rate limit, False if exceeded
+        """
+        now = time.time()
+        timestamps = self.message_timestamps[node_id]
+
+        # Remove old timestamps outside the window
+        while timestamps and timestamps[0] < now - self.rate_limit_window:
+            timestamps.popleft()
+
+        # Check if limit exceeded
+        if len(timestamps) >= self.rate_limit_max_messages:
+            self.logger.warning(
+                f"Rate limit exceeded for node {node_id}: "
+                f"{len(timestamps)} messages in {self.rate_limit_window}s "
+                f"(max {self.rate_limit_max_messages})"
+            )
+            return False
+
+        # Add current timestamp
+        timestamps.append(now)
+        return True
 
     def connect(self):
         """Connect to MQTT broker and subscribe to topics."""
@@ -459,9 +589,27 @@ class MQTTFleetCoordinator:
         try:
             payload = json.loads(msg.payload.decode())
 
-            # Update active nodes
-            if "node_id" in payload:
-                self.active_nodes[payload["node_id"]] = time.time()
+            # Security: Extract node_id and validate message
+            node_id = payload.get("node_id")
+            if not node_id:
+                self.logger.warning(f"Rejected message without node_id on topic {msg.topic}")
+                return
+
+            # Security: Check node allowlist
+            if not self._verify_node_allowed(node_id):
+                return  # Already logged in _verify_node_allowed
+
+            # Security: Check rate limit
+            if not self._check_rate_limit(node_id):
+                return  # Already logged in _check_rate_limit
+
+            # Security: Verify HMAC signature
+            hmac_signature = payload.get("hmac")
+            if not self._verify_hmac(payload, hmac_signature):
+                return  # Already logged in _verify_hmac
+
+            # Update active nodes (only for authenticated messages)
+            self.active_nodes[node_id] = time.time()
 
             # Route to appropriate handler
             if "detections" in msg.topic:

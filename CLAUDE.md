@@ -79,10 +79,49 @@
 
 ### Code Style
 
-- [To be filled in: formatting preferences, naming conventions, etc.]
 - **Over-engineering**: Avoid it. Make only changes that are directly requested or clearly necessary
 - **Comments**: Only add where logic isn't self-evident. Don't add comments to code you didn't change
 - **Error handling**: Only validate at system boundaries. Don't add error handling for scenarios that can't happen
+
+### Established Patterns (match existing code)
+
+**Logging**
+- Instance-level only: `self.logger = logging.getLogger(self.__class__.__name__)`
+- No module-level `logger = logging.getLogger(__name__)`
+
+**Lifecycle (`start`/`stop`)**
+- Guard: `if self.running: return` at top of `start()`
+- Thread: `threading.Thread(target=..., daemon=True)`
+- Stop: set `self.running = False`, then `thread.join(timeout=N)`
+
+**Exception handling**
+- Broad `except Exception` is allowed only with an explanatory comment: `# Intentionally broad: <reason>`
+- Never silently swallow — always log
+
+**Stats**
+- Track as `self.stats = {...}` dict
+- Expose via `get_stats() -> Dict[str, Any]`
+
+**Event bus**
+- Use existing `EventType` enum and `Event` dataclass from `src/core/event_bus.py`
+- Don't invent new event formats or bypass the bus
+
+**Base classes**
+- Long-running components with polling: extend `BaseSensor` or follow its pattern exactly
+- Context manager (`__enter__`/`__exit__`) on any class that has `start()`/`stop()`
+
+**Imports**
+- Order: stdlib → third-party → local (`src.*`), each group alphabetically sorted
+
+**Constructor signatures**
+- Order: required params → optional params with defaults → `event_bus=None` last
+
+**Public/private**
+- Internal methods: `_single_underscore` prefix, no exceptions
+
+**Docstrings**
+- Public methods: one-line summary + `Args:` / `Returns:` sections when non-obvious
+- No prose-heavy AI-generated descriptions
 
 ### File Organization
 
@@ -258,9 +297,21 @@ Post-commit: After making the commit(s), begin the merge-to-main process by show
 - Production on Raspberry Pi uses `.venv`
 - DO NOT install packages globally (no `sudo pip install`)
 
+**Windows (Git Bash / Claude Code shell):**
+
+The `.venv` was created in WSL and its symlinks resolve only in Linux. When running on Windows, **prefix all Python commands with `wsl`**:
+
+```bash
+# Instead of: ./.venv/bin/python ...
+wsl bash -c "cd /mnt/e/Gits/github.com/braveness23/gds && .venv/bin/python ..."
+```
+
+Development and the interactive terminal should be done inside WSL, where `.venv/bin/python` works normally.
+
 **Agent enforcement:**
 
 - All automation, CLI helpers, CI scripts, editors, and assistant actions MUST prefer the explicit interpreter path `./.venv/bin/python`.
+- On Windows (Claude Code / Git Bash): prefix with `wsl bash -c "cd /mnt/e/Gits/github.com/braveness23/gds && ..."`.
 - If an automated script detects that the current Python interpreter is not the project's `.venv`, it should either:
    - fail fast with a clear message instructing the user to run `./.venv/bin/python <command>` or activate the venv, or
    - create `.venv` and install required packages before continuing only if explicitly allowed by the user.
@@ -466,10 +517,11 @@ When specifying commands in automation or documentation, always show the `.venv`
 
 **Active goals:**
 
-- Dependency management system (setup complete - 2026-02-15)
+- ✅ Security hardening — COMPLETED (GPS validation, MQTT authentication, all critical/high-priority issues resolved - 2026-02-20)
+- ✅ Test coverage to >70% — COMPLETED (currently 72%, comprehensive test suite with 2900+ lines - 2026-02-20)
 - Platform abstraction (making Linux-only code cross-platform - see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
-- Security hardening (credentials, TLS validation, input validation - see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md))
 - Code quality improvements (type hints, exception handling, imports)
+- System monitoring implementation (CPU, memory, disk, temperature via psutil)
 
 **Deferred/On hold:**
 
@@ -499,6 +551,7 @@ When specifying commands in automation or documentation, always show the `.venv`
 - **2026-02-15**: Added comprehensive Git Practices section with branching strategy, Angular commit conventions, cleanup workflow, and approval process
 - **2026-02-15**: Added pre-commit hook requirements to Git Practices - must run before showing approval summary to avoid fix loops
 - **2026-02-16**: Major docs restructuring — 12 old docs replaced with 4 focused files (ARCHITECTURE.md, DEVELOPMENT.md, SETUP.md, STATUS.md); README rewritten to reflect actual project status; copilot-instructions.md rewritten with project-specific content; linter updated from flake8 → ruff throughout
+- **2026-02-20**: Comprehensive test suite overhaul — test coverage 55% → 72% with 2900+ lines of unit/integration/hardware tests; all critical/high-priority security issues resolved (GPS validation, MQTT authentication with HMAC + rate limiting)
 
 ### Improvement Ideas
 
@@ -516,4 +569,4 @@ When specifying commands in automation or documentation, always show the `.venv`
 
 ---
 
-**Last Updated**: 2026-02-15 (Dependency Management System implemented)
+**Last Updated**: 2026-02-20 (Test coverage 55% → 72%, security hardening complete)

@@ -152,6 +152,77 @@ def mock_mqtt_client():
 
 
 @pytest.fixture
+def mock_broker():
+    """Shared in-process MQTT broker that routes messages between clients.
+
+    Use together with ``broker_paho`` when a test needs real pub/sub routing
+    (e.g. MQTTOutputNode publishing → FleetCoordinator receiving).
+    """
+    from tests.mocks.mock_mqtt_broker import MockMQTTBroker
+
+    broker = MockMQTTBroker()
+    yield broker
+    broker.reset()
+
+
+@pytest.fixture
+def broker_paho(mock_broker, monkeypatch):
+    """Patch paho.mqtt.client.Client with routing-enabled MockMQTTClient.
+
+    Unlike ``mock_paho_mqtt`` (which only records calls), all clients created
+    through this fixture share ``mock_broker`` so published messages are
+    actually delivered to matching subscribers — enabling real integration tests.
+
+    Handles both lazy imports (mqtt_output.py does ``import paho...`` inside
+    ``connect()``) and module-level imports (remote_config modules bind ``mqtt``
+    at import time).
+
+    Yields the shared ``MockMQTTBroker`` for assertions::
+
+        def test_detection_reaches_coordinator(broker_paho, event_bus):
+            # ... wire components ...
+            broker_paho.drain()
+            assert len(broker_paho.get_messages("gunshot/+/detections")) == 1
+    """
+    from types import ModuleType
+
+    from tests.mocks.mock_mqtt import MockMQTTClient
+
+    broker = mock_broker
+
+    def factory(*args, **kwargs):
+        return MockMQTTClient(client_id=kwargs.get("client_id", ""), broker=broker)
+
+    # Patch via sys.modules for modules that import paho lazily (e.g. mqtt_output.py)
+    fake_paho = sys.modules.get("paho") or ModuleType("paho")
+    fake_mqtt_pkg = sys.modules.get("paho.mqtt") or ModuleType("paho.mqtt")
+    fake_mqtt_client_mod = ModuleType("paho.mqtt.client")
+    fake_mqtt_client_mod.Client = factory
+    monkeypatch.setitem(sys.modules, "paho", fake_paho)
+    monkeypatch.setitem(sys.modules, "paho.mqtt", fake_mqtt_pkg)
+    monkeypatch.setitem(sys.modules, "paho.mqtt.client", fake_mqtt_client_mod)
+    fake_paho.mqtt = fake_mqtt_pkg
+    fake_mqtt_pkg.client = fake_mqtt_client_mod
+
+    # Patch module-level ``mqtt`` binding for remote_config modules that do
+    # ``import paho.mqtt.client as mqtt`` at the top of the file.
+    try:
+        import src.remote_config.client as _rc_client
+        monkeypatch.setattr(_rc_client, "mqtt", fake_mqtt_client_mod)
+    except ImportError:
+        pass
+    try:
+        import src.remote_config.server as _rc_server
+        monkeypatch.setattr(_rc_server, "mqtt", fake_mqtt_client_mod)
+    except ImportError:
+        pass
+
+    yield broker
+
+    MockMQTTClient.reset_all()
+
+
+@pytest.fixture
 def mqtt_test_config(test_config):
     """Test configuration with localhost MQTT enabled."""
     config = test_config

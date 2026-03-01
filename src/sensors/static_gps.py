@@ -10,6 +10,12 @@ class StaticGPSDevice(BaseGPSDevice[GPSData]):
     """
 
     def __init__(self, latitude: float, longitude: float, altitude: float = 0.0):
+        # Import here to avoid circular import
+        from .gps import validate_coordinates
+
+        # Validate coordinates
+        validate_coordinates(latitude, longitude, altitude)
+
         super().__init__(update_interval=0, sensor_name="StaticGPSDevice")
         self.position = GPSData(
             latitude=latitude,

@@ -24,7 +24,7 @@ The system is **distributed** and **event-driven**:
 └────────┬────────┘
          ▼
 ┌─────────────────┐
-│   Detectors     │  (Aubio onset, threshold, ML stub)
+│   Detectors     │  (Aubio onset, threshold)
 └────────┬────────┘
          ▼
 ┌─────────────────┐
@@ -32,7 +32,7 @@ The system is **distributed** and **event-driven**:
 └────────┬────────┘
          ▼
 ┌─────────────────┐
-│    Outputs      │  (MQTT, file logger)
+│    Outputs      │  (MQTT)
 └─────────────────┘
          │ MQTT
          ▼

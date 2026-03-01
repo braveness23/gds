@@ -28,6 +28,7 @@ def test_invalid_types(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="File permissions work differently on Windows")
+@pytest.mark.skipif(os.getuid() == 0, reason="Root bypasses file permission checks")
 def test_permission_error(tmp_path, monkeypatch):
     file_path = tmp_path / "protected.yaml"
     file_path.write_text("system: {}")
