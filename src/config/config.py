@@ -77,9 +77,10 @@ class Config:
             "timing": {
                 "use_pps": True,
                 "pps_device": "/dev/pps0",
-                "use_ntp": True,
-                "ntp_server": "localhost",
+                "use_ntp": False,
+                "ntp_server": "pool.ntp.org",
                 "ntp_sync_interval": 300,
+                "max_offset_ms": 10.0,
             },
             "sensors": {
                 "gps": {
@@ -97,12 +98,12 @@ class Config:
                 },
             },
             "audio": {
-                "source_type": "alsa",
+                "source": "alsa",
                 "device": "hw:0,0",
                 "sample_rate": 48000,
                 "channels": 1,
                 "buffer_size": 1024,
-                "format": "S32_LE",
+                "format_bits": 32,
             },
             "processing": {
                 "highpass_filter": {
@@ -140,7 +141,18 @@ class Config:
                     "tls_insecure": False,
                     "tls_ca_cert": None,
                 },
-                "file_logger": {"enabled": True, "path": "/var/log/detections.jsonl"},
+                "file_logger": {
+                    "enabled": False,
+                    "path": "/var/log/detections.jsonl",
+                    "max_size_mb": 100.0,
+                    "backup_count": 5,
+                },
+                "buffer_saver": {
+                    "enabled": False,
+                    "path": "/var/log/gds_captures",
+                    "pre_seconds": 1.0,
+                    "post_seconds": 2.0,
+                },
             },
             "monitoring": {
                 "system": {
