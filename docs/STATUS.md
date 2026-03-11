@@ -148,6 +148,24 @@ Requires: config option `audio.source_type: "i2s"`, platform abstraction (Linux 
 
 ## Future Ideas
 
+### Audio Filtering
+
+**Priority:** Medium | **Complexity:** Low–Medium
+
+Only a high-pass (low-cut) filter exists today (`src/processing/processing_nodes.py`). Additional filters would improve detection quality in noisy environments:
+
+- **Low-pass filter** — cut high-frequency hiss/aliasing above the gunshot frequency range
+- **Band-pass filter** — combine high-pass + low-pass into a single configurable passband (e.g. 200Hz–8kHz for gunshots)
+- **Notch filter** — reject specific interference frequencies (e.g. 50/60Hz mains hum, HVAC tones)
+- **Dynamic compression / AGC** — normalize signal level before detection so distant shots aren't missed and close shots don't saturate
+- **Noise gate** — hard-gate signal below a noise floor to prevent false positives in windy/outdoor environments
+
+Config keys (proposed): `processing.lowpass_filter.*`, `processing.bandpass_filter.*`, `processing.notch_filter.*`, `processing.compressor.*`
+
+Implementation: all would follow the same pattern as `HighPassFilterNode` — scipy.signal butter/iirnotch, AudioNode subclass, config-driven enable/disable.
+
+---
+
 ### Advanced Detection
 
 - Multi-stage detection (fast trigger → ML confirmation)
