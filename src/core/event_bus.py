@@ -193,12 +193,15 @@ class EventBus:
 
 # Global event bus instance
 _global_event_bus = None
+_global_event_bus_lock = threading.Lock()
 
 
 def get_event_bus() -> EventBus:
-    """Get global event bus instance"""
+    """Get global event bus instance (thread-safe singleton)."""
     global _global_event_bus
     if _global_event_bus is None:
-        _global_event_bus = EventBus()
-        _global_event_bus.start()
+        with _global_event_bus_lock:
+            if _global_event_bus is None:
+                _global_event_bus = EventBus()
+                _global_event_bus.start()
     return _global_event_bus
