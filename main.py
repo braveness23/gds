@@ -21,6 +21,8 @@ from src.config.config import Config
 from src.core.event_bus import EventBus, EventType
 from src.core.logging_utils import setup_logging
 from src.detection.detection_nodes import AubioOnsetNode, ThresholdDetectorNode
+from src.output.buffer_saver import BufferSaverNode
+from src.output.file_logger import FileLoggerNode
 from src.output.mqtt_output import MQTTOutputNode
 from src.sensors.gps import create_gps_reader
 from src.sensors.static_gps import StaticGPSDevice
@@ -55,6 +57,8 @@ class GunshotDetectionSystem:
         self.audio_source = None
         self.gps_reader = None
         self.mqtt_output = None
+        self.file_logger = None
+        self.buffer_saver = None
         self.pipeline_nodes = []
 
         # State
@@ -134,7 +138,41 @@ class GunshotDetectionSystem:
             else:
                 logger.info("  - MQTT disabled")
 
-            # 5. Initialize audio source
+            # 5. Initialize file logger if enabled
+            fl_config = self.config.get("output.file_logger", {})
+            if fl_config.get("enabled", False):
+                self.file_logger = FileLoggerNode(
+                    path=fl_config.get("path", "/var/log/detections.jsonl"),
+                    max_size_mb=fl_config.get("max_size_mb", 100.0),
+                    backup_count=fl_config.get("backup_count", 5),
+                    node_id=self.config.get("system.node_id", "unknown"),
+                    event_bus=self.event_bus,
+                )
+                self.file_logger.start()
+                logger.info("  ✓ File logger initialized")
+            else:
+                logger.info("  - File logger disabled")
+
+            # 6. Initialize buffer saver if enabled
+            bs_config = self.config.get("output.buffer_saver", {})
+            if bs_config.get("enabled", False):
+                audio_cfg = self.config.get("audio", {})
+                self.buffer_saver = BufferSaverNode(
+                    path=bs_config.get("path", "/var/log/gds_captures"),
+                    pre_seconds=bs_config.get("pre_seconds", 1.0),
+                    post_seconds=bs_config.get("post_seconds", 2.0),
+                    node_id=self.config.get("system.node_id", "unknown"),
+                    sample_rate=audio_cfg.get("sample_rate", 48000),
+                    channels=audio_cfg.get("channels", 1),
+                    buffer_size=audio_cfg.get("buffer_size", 1024),
+                    event_bus=self.event_bus,
+                )
+                self.buffer_saver.start()
+                logger.info("  ✓ Buffer saver initialized")
+            else:
+                logger.info("  - Buffer saver disabled")
+
+            # 7. Initialize audio source
             audio_config = self.config.get("audio", {})
             # Support both `source` and legacy `source_type` config keys
             source_type = audio_config.get("source") or audio_config.get(
@@ -197,6 +235,11 @@ class GunshotDetectionSystem:
                 self.audio_source.connect(aubio_node.receive)
                 self.audio_source.connect(thresh_node.receive)
                 logger.info("  ✓ Detection nodes connected to audio source")
+
+                # Connect buffer saver to audio source (needs raw audio for pre-roll)
+                if self.buffer_saver:
+                    self.audio_source.connect(self.buffer_saver.receive)
+                    logger.info("  ✓ Buffer saver connected to audio source")
             except Exception as e:
                 logger.error(f"Failed to wire detection pipeline: {e}")
 
@@ -269,6 +312,15 @@ class GunshotDetectionSystem:
         if self.audio_source:
             logger.info("Stopping audio capture...")
             self.audio_source.stop()
+
+        # Stop output nodes
+        if self.buffer_saver:
+            logger.info("Stopping buffer saver...")
+            self.buffer_saver.stop()
+
+        if self.file_logger:
+            logger.info("Stopping file logger...")
+            self.file_logger.stop()
 
         # Stop GPS
         if self.gps_reader:

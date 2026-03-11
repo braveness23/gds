@@ -109,12 +109,18 @@ output:
     # username/password: use GDS_MQTT_USERNAME / GDS_MQTT_PASSWORD env vars instead
 
   # File Logger - Local JSONL fallback (keep logs when MQTT is down)
-  # NOTE: FileLoggerNode is not yet implemented; this section is reserved.
   file_logger:
     enabled: false
     path: "/var/log/detections.jsonl"
     max_size_mb: 100 # Rotate after 100MB
     backup_count: 5 # Keep 5 rotated files
+
+  # Buffer Saver - Save WAV clips around each detection for debugging / ML training
+  buffer_saver:
+    enabled: false
+    path: "/var/log/gds_captures" # Directory for WAV + JSON sidecar files
+    pre_seconds: 1.0 # Audio to save before detection
+    post_seconds: 2.0 # Audio to save after detection
 
 # ============================================================================
 # MONITORING - System health
