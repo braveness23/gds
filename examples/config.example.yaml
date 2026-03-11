@@ -21,6 +21,7 @@ system:
   node_id: "pi_gunshot_001" # CHANGE THIS - Must be unique for each node
   log_level: "INFO"
   log_path: "/var/log/gunshot_detector.log"
+  event_queue_size: 1000 # Max queued events before dropping (increase if events dropped under load)
 
 # ============================================================================
 # TIMING - Critical for trilateration accuracy

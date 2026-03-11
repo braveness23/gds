@@ -86,7 +86,8 @@ class GunshotDetectionSystem:
                 logger.info("  ✓ Using pre-configured settings")
 
             # 2. Initialize event bus
-            self.event_bus = EventBus()
+            queue_size = self.config.get("system.event_queue_size", 1000)
+            self.event_bus = EventBus(max_queue_size=queue_size)
             self.event_bus.start()
             logger.info("  ✓ Event bus started")
 
