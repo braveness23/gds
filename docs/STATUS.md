@@ -1,6 +1,6 @@
 # Project Status & Roadmap
 
-> **Last updated:** 2026-03-03 | **Overall completeness:** ~75–80%
+> **Last updated:** 2026-03-10 | **Overall completeness:** ~85–90%
 
 ---
 
@@ -21,25 +21,20 @@
 | **Main application** | ✅ 85% | Orchestrator, CLI, pipeline builder, signal handlers |
 | **System monitoring** | ✅ 85% | CPU, memory, disk, temperature via psutil (314 lines, 86% test coverage) |
 | **Remote configuration** | ✅ 80% | MQTT-based client/server with safety checks, HMAC auth (2490 lines, 75-91% test coverage) |
-| **Timing/synchronization** | ❌ 0% | NTP/PPS clock classes not implemented |
-| **File logger output** | ❌ 0% | No `src/output/file_logger.py` |
-| **Buffer saver output** | ❌ 0% | No `src/output/buffer_saver.py` |
-| **Tests** | ✅ 77% | 397 tests passing (17 skipped), comprehensive unit + integration suite |
+| **Timing/synchronization** | ✅ 80% | `NTPClock` in `src/timing/ntp_clock.py` — NTP offset monitor with TIMING events; GPS PPS handled at OS level via chrony |
+| **File logger output** | ✅ 90% | `FileLoggerNode` in `src/output/file_logger.py` — rotating JSONL, 16 unit tests |
+| **Buffer saver output** | ✅ 85% | `BufferSaverNode` in `src/output/buffer_saver.py` — WAV+JSON capture with pre/post window, 18 unit tests |
+| **Tests** | ✅ 78%+ | 396+ unit tests passing, comprehensive unit + integration suite |
 
 ---
 
 ## Critical Gaps
 
-### 1. Timing/Synchronization — Trilateration Accuracy at Risk
+### ~~1. Timing/Synchronization~~ ✅ Implemented
 
-No active time synchronization is implemented beyond the OS system clock. The GPS PPS integration in `docs/SETUP.md` disciplines the *system clock* — Python code just calls `time.time()` and benefits automatically.
+`src/timing/ntp_clock.py` — NTPClock monitors offset against an NTP server and publishes TIMING events when drift exceeds `max_offset_ms` (default 10ms = 3.4m trilateration error). GPS PPS timing is handled at the OS level via chrony. See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md).
 
-**Impact:** 1ms timing error = 0.34m position error. Without PPS-disciplined clocks, nodes may have 10–100ms skew, producing location errors of hundreds of meters.
-
-**What's needed:**
-
-- `NTPClock` class for periodic sync + offset monitoring
-- Verify PPS integration works end-to-end with actual hardware
+**Remaining:** Validate PPS hardware integration end-to-end on real Pi hardware.
 
 ### ~~2. System Monitoring~~ ✅ Implemented
 
@@ -51,7 +46,7 @@ No active time synchronization is implemented beyond the OS system clock. The GP
 
 ### 4. Test Coverage — ✅ Target Met
 
-77% coverage (target: >70%). 397 tests passing. Core components (event bus, config, detection, sensors) have >85% coverage.
+78%+ coverage (target: >70%). 396+ unit tests passing. Core components (event bus, config, detection, sensors) have >85% coverage.
 
 ### 5. ML Detection — Not Implemented
 
@@ -61,10 +56,10 @@ No ML detector class exists yet. Aubio onset detection works well as the primary
 
 ## Completion Roadmap
 
-### Phase 1 — Make It Work (2–3 days)
+### Phase 1 — Make It Work ✅ Complete
 
-1. Implement `FileLoggerNode` (JSONL format, local fallback when MQTT down)
-2. Implement `BufferSaverNode` (WAV + metadata around detections)
+1. ✅ `FileLoggerNode` — JSONL rotating log, local fallback when MQTT down
+2. ✅ `BufferSaverNode` — WAV + JSON sidecar capture around detections
 3. Deploy to real Raspberry Pi hardware; fix runtime issues
 4. Test trilateration with 3+ nodes
 
@@ -78,10 +73,10 @@ No ML detector class exists yet. Aubio onset detection works well as the primary
 1. ✅ `src/remote_config/` — MQTT-based client/server architecture
 2. ✅ Safety checks, risk assessment, HMAC authentication
 
-### Phase 4 — Make It Accurate (2–3 days)
+### Phase 4 — Make It Accurate (partial ✅)
 
-1. Implement and test NTP sync monitoring
-2. Validate PPS hardware integration end-to-end
+1. ✅ NTP offset monitoring — `NTPClock` implemented with TIMING events
+2. Validate PPS hardware integration end-to-end on real Pi hardware
 3. Integrate environmental sensor data into trilateration server
 
 ### Phase 5 — Make It Robust ✅ Complete
