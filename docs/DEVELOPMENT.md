@@ -87,7 +87,10 @@ tests/
 │   ├── test_mqtt_integration.py
 │   └── ...
 ├── hardware/              # requires physical hardware
-│   └── (empty — needs test procedures written)
+│   ├── test_i2s_audio.py  # I2S microphone tests
+│   ├── test_serial_gps.py # Serial GPS tests
+│   ├── test_integration.py # Full hardware integration
+│   └── diagnostic.py      # Hardware diagnostic tool
 └── mocks/
     ├── mock_mqtt.py       # MockMQTTClient with in-process pub/sub
     └── ...
@@ -150,11 +153,11 @@ def test_mqtt_publishes_detections(event_bus):
 
 | Tier | Target | Current |
 | ---- | ------ | ------- |
-| Unit tests | > 80% coverage | 72% overall |
+| Unit tests | > 80% coverage | 77% overall |
 | Integration tests | All critical paths | ✅ Complete |
-| Hardware tests | Manual validation before deployment | ✅ Procedures documented |
+| Hardware tests | Manual validation before deployment | ✅ Procedures written |
 
-**Current state:** 72% coverage (2900+ lines of tests added 2026-02-20). Core components >90% coverage. See [STATUS.md](STATUS.md).
+**Current state:** 77% coverage, 397 tests passing. Core components (event bus, config, detection, sensors) >85% coverage. See [STATUS.md](STATUS.md).
 
 ---
 
@@ -270,6 +273,14 @@ pre-commit run --all-files  # run all checks
 ### Pre-commit Hooks
 
 `.pre-commit-config.yaml` runs: end-of-file-fixer, trailing-whitespace, check-yaml, ruff (with `--fix`, including import sorting), black, and a custom `sync-requirements` hook.
+
+---
+
+## GPS PPS Timing
+
+Accurate trilateration depends on GPS-synchronized clocks. When chrony is PPS-disciplined, `time.time()` is already GPS-accurate — the audio callback in `ALSASourceNode` captures timestamps this way automatically. No PPS library is needed in application code.
+
+See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md) for full setup, verification, NTP fallback strategy, and error budget.
 
 ---
 

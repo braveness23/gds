@@ -48,6 +48,55 @@ The system is **distributed** and **event-driven**:
 
 ---
 
+## Single-Node Process Boundary
+
+Inside one Pi, the event bus and MQTT run in the same process. MQTT is just another subscriber:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  Raspberry Pi Process                                          │
+│                                                                │
+│  ALSASourceNode ──▶ HighPassFilter ──▶ BufferSplitter         │
+│                                              │                 │
+│                              ┌───────────────┴──────────┐     │
+│                              ▼                          ▼     │
+│                       AubioOnsetNode          ThresholdNode   │
+│                              │                          │     │
+│                              └─────────┬────────────────┘     │
+│                                        ▼                      │
+│                                    EventBus                   │
+│                              (queue + dispatch thread)        │
+│                                        │                      │
+│                         ┌──────────────┼──────────────┐      │
+│                         ▼              ▼               ▼      │
+│                   MQTTOutputNode  SystemMonitor   [loggers]   │
+│                         │                                     │
+└─────────────────────────┼─────────────────────────────────────┘
+                          │ paho-mqtt (network)
+                          ▼
+                     MQTT Broker
+```
+
+**Why two layers?**
+- **Local event bus:** Zero network overhead; works when MQTT is down; decouples detectors from outputs
+- **MQTT:** Fleet-wide broadcast; auto-reconnect; QoS delivery guarantees; standard protocol for dashboards
+
+---
+
+## Full Event Flow
+
+A single gunshot detection flows through the system like this:
+
+1. **Audio callback** (`ALSASourceNode._audio_callback`) — timestamp captured first, samples normalized, buffer emitted
+2. **HPF** (`HighPassFilterNode`) — attenuates frequencies below 5kHz, preserving gunshot energy
+3. **Splitter** (`BufferSplitterNode`) — broadcasts buffer to both detectors in parallel
+4. **Aubio detector** (`AubioOnsetNode`) — processes in `hop_size=512` chunks, detects onset, publishes `DETECTION` event
+5. **Event bus** dispatches to all `DETECTION` subscribers (MQTT output, local logger)
+6. **MQTT output** (`MQTTOutputNode._on_detection_event`) — enriches with GPS + environmental data, publishes JSON to two topics: `gunshot/detections` and `gunshot/<node_id>/detections`
+7. **Trilateration server** (`scripts/trilateration_server.py`) — collects from all nodes, groups by time window, solves TDOA matrix, emits position with confidence score
+
+---
+
 ## Local Event Bus
 
 Each node has an in-process event bus (`src/core/event_bus.py`) that decouples components:
@@ -187,6 +236,8 @@ Each node pair defines a **hyperbola** (2D) or **hyperboloid** (3D). With 3+ nod
 | Multipath | Delayed arrivals | Use earliest detection; filter by residual error |
 
 **Practical accuracy with GPS PPS:** 10–50m
+
+See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md) for setup, verification commands, NTP fallback, and common issues.
 
 ### Trilateration Server Config
 

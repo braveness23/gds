@@ -102,6 +102,8 @@ chronyc sources -v    # verify PPS0 shows * (primary source)
 
 With PPS, clock accuracy is < 1μs. The dominant positioning error is audio buffer timing (~1–10ms = 0.34–3.4m).
 
+See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md) for deeper coverage: accuracy analysis, verification commands, NTP fallback for non-GPS nodes, and common issues.
+
 ### Testing GPS
 
 ```bash

@@ -43,6 +43,12 @@ logs/
 # IDE
 .vscode/
 .idea/
+
+# Claude Code (local settings, not shared)
+.claude/settings.local.json
+
+# Working/scratch files
+gdsdiff.md
 *.swp
 *.swo
 *~

@@ -24,7 +24,7 @@
 | **Timing/synchronization** | ❌ 0% | NTP/PPS clock classes not implemented |
 | **File logger output** | ❌ 0% | No `src/output/file_logger.py` |
 | **Buffer saver output** | ❌ 0% | No `src/output/buffer_saver.py` |
-| **Tests** | ✅ 77% | 397 tests passing, comprehensive unit + integration suite |
+| **Tests** | ✅ 77% | 397 tests passing (17 skipped), comprehensive unit + integration suite |
 
 ---
 

@@ -15,7 +15,7 @@ A distributed acoustic gunshot detection and trilateration system for Raspberry 
 - Publishes events to an MQTT broker
 - A central trilateration server calculates gunshot position from time-of-arrival differences across multiple nodes
 
-**Current status: ~60–70% complete.** Core detection, MQTT publishing, GPS integration, and environmental sensors work. Comprehensive test suite (72% coverage). System monitoring and remote configuration are not yet implemented. See [docs/STATUS.md](docs/STATUS.md).
+**Current status: ~75–80% complete.** Core detection, MQTT publishing, GPS integration, environmental sensors, system monitoring, and remote configuration all work. Comprehensive test suite (77% coverage). See [docs/STATUS.md](docs/STATUS.md).
 
 ## Hardware Requirements
 
@@ -146,7 +146,7 @@ gds/
 │   ├── detection/          # detection algorithms (Aubio, threshold)
 │   ├── output/             # MQTT output
 │   ├── sensors/            # GPS, environmental sensors
-│   ├── monitoring/         # system monitoring (not yet implemented)
+│   ├── monitoring/         # system monitoring (CPU, memory, disk, temperature)
 │   └── config/             # configuration management
 ├── scripts/
 │   ├── setup_dev.py        # one-command dev setup
@@ -162,8 +162,9 @@ gds/
 
 | Doc | Contents |
 | --- | -------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, event bus, MQTT topics, trilateration algorithm |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, event bus, MQTT topics, trilateration algorithm, event flow |
 | [docs/SETUP.md](docs/SETUP.md) | Hardware wiring, GPS/PPS, sensors, fleet deployment |
+| [docs/GPS_PPS_TIMING.md](docs/GPS_PPS_TIMING.md) | GPS PPS timing deep-dive — accuracy, chrony setup, verification, common issues |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Testing guide, platform abstraction, security audit |
 | [docs/STATUS.md](docs/STATUS.md) | Component status, roadmap, future features |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
