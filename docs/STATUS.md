@@ -1,6 +1,6 @@
 # Project Status & Roadmap
 
-> **Last updated:** 2026-02-20 | **Overall completeness:** ~60–70%
+> **Last updated:** 2026-03-03 | **Overall completeness:** ~75–80%
 
 ---
 
@@ -19,12 +19,12 @@
 | **Environmental sensors** | ✅ 70% | BME280 + DHT22 implemented; needs hardware test |
 | **Trilateration server** | ✅ 95% | 800+ line standalone server; TDOA, geometry scoring |
 | **Main application** | ✅ 85% | Orchestrator, CLI, pipeline builder, signal handlers |
-| **System monitoring** | ❌ 0% | `src/monitoring/` contains only `__init__.py` |
-| **Remote configuration** | ❌ 0% | No MQTT/HTTP remote config implemented |
+| **System monitoring** | ✅ 85% | CPU, memory, disk, temperature via psutil (314 lines, 86% test coverage) |
+| **Remote configuration** | ✅ 80% | MQTT-based client/server with safety checks, HMAC auth (2490 lines, 75-91% test coverage) |
 | **Timing/synchronization** | ❌ 0% | NTP/PPS clock classes not implemented |
 | **File logger output** | ❌ 0% | No `src/output/file_logger.py` |
 | **Buffer saver output** | ❌ 0% | No `src/output/buffer_saver.py` |
-| **Tests** | ✅ 72% | Comprehensive unit + integration + hardware test suite (2900+ lines) |
+| **Tests** | ✅ 77% | 397 tests passing, comprehensive unit + integration suite |
 
 ---
 
@@ -41,19 +41,17 @@ No active time synchronization is implemented beyond the OS system clock. The GP
 - `NTPClock` class for periodic sync + offset monitoring
 - Verify PPS integration works end-to-end with actual hardware
 
-### 2. System Monitoring — Zero Visibility
+### ~~2. System Monitoring~~ ✅ Implemented
 
-`src/monitoring/` has only an `__init__.py`. There is no CPU/memory/disk/temperature monitoring or health status publishing.
+`src/monitoring/system_monitor.py` — CPU, memory, disk, temperature monitoring via psutil. 314 lines, 86% test coverage.
 
-**What's needed:** `src/monitoring/system_monitor.py` using `psutil` to publish health metrics via MQTT.
+### ~~3. Remote Configuration~~ ✅ Implemented
 
-### 3. Remote Configuration — Physical Access Required
+`src/remote_config/` — MQTT-based remote configuration with client/server architecture, safety checks (blocked paths, risk assessment), and HMAC-SHA256 message authentication. 2490 lines across 4 modules, 75-91% test coverage.
 
-All configuration requires physical access to each node. `examples/config.example.yaml` has a `remote_config` section but no code implements it.
+### 4. Test Coverage — ✅ Target Met
 
-### 4. Test Coverage — Approaching Production Readiness
-
-72% coverage (target: >70%). Comprehensive test suite includes unit, integration, and hardware tests. Core components (event bus, config, GPS, sensors, MQTT) have >90% coverage. Remaining gaps in system monitoring and remote config (not yet implemented).
+77% coverage (target: >70%). 397 tests passing. Core components (event bus, config, detection, sensors) have >85% coverage.
 
 ### 5. ML Detection — Not Implemented
 
@@ -70,15 +68,15 @@ No ML detector class exists yet. Aubio onset detection works well as the primary
 3. Deploy to real Raspberry Pi hardware; fix runtime issues
 4. Test trilateration with 3+ nodes
 
-### Phase 2 — Make It Observable (1–2 days)
+### Phase 2 — Make It Observable ✅ Complete
 
-1. Implement `src/monitoring/system_monitor.py` (CPU, memory, disk, temperature)
-2. Publish health metrics via MQTT
+1. ✅ `src/monitoring/system_monitor.py` (CPU, memory, disk, temperature via psutil)
+2. ✅ Health metrics publishing
 
-### Phase 3 — Make It Manageable (2–3 days)
+### Phase 3 — Make It Manageable ✅ Complete
 
-1. Implement `src/config/remote_config.py`
-2. Implement MQTT config bridge (get/set/confirm per node and broadcast)
+1. ✅ `src/remote_config/` — MQTT-based client/server architecture
+2. ✅ Safety checks, risk assessment, HMAC authentication
 
 ### Phase 4 — Make It Accurate (2–3 days)
 
@@ -86,12 +84,13 @@ No ML detector class exists yet. Aubio onset detection works well as the primary
 2. Validate PPS hardware integration end-to-end
 3. Integrate environmental sensor data into trilateration server
 
-### Phase 5 — Make It Robust (3–5 days) ✅ 90% Complete
+### Phase 5 — Make It Robust ✅ Complete
 
-1. ✅ Unit tests to > 70% coverage (currently 72%)
+1. ✅ Unit tests to > 70% coverage (currently 77%)
 2. ✅ Integration test suite (with mock services)
 3. ✅ Hardware test procedures (GPS, sensors, audio)
-4. ⚠️ Error recovery and circuit breakers (partially implemented)
+4. ✅ Security hardening (GPS validation, MQTT auth with HMAC, rate limiting)
+5. ⚠️ Error recovery and circuit breakers (partially implemented)
 
 ### Phase 6 — Future Features (deferred)
 

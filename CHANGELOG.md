@@ -10,12 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Comprehensive contribution guidelines (CONTRIBUTING.md)
 - GitHub issue and PR templates
-- CI/CD workflow with GitHub Actions
+- CI/CD workflow with GitHub Actions (lint, test matrix 3.7-3.12, integration, dep check, build)
 - Status badges in README
+- System monitoring module (`src/monitoring/system_monitor.py`) — CPU, memory, disk, temperature via psutil
+- Remote configuration system (`src/remote_config/`) — MQTT-based client/server with safety checks, risk assessment, HMAC-SHA256 authentication
+- GPS coordinate validation with type/range checks; rejects dangerous defaults
+- MQTT Fleet Coordinator security — node allowlist, HMAC message signing, per-node rate limiting
+- CODE_OF_CONDUCT.md (Contributor Covenant v2.1)
+- SECURITY.md (vulnerability reporting policy)
 
 ### Changed
 - Moved trilateration server to scripts/ directory for better organization
 - Consolidated GPS documentation into single comprehensive guide
+- Test coverage improved from ~60% to 77% (397 tests passing)
+- Consolidated CI workflows (removed redundant ci-lint.yml)
+
+### Security
+- All critical and high-priority security issues resolved
+- TLS certificate verification enforced (removed insecure fallback)
+- Credentials managed via environment variables (config.yaml removed from version control)
+- HMAC-SHA256 message authentication for fleet coordination
 
 ## [0.1.0] - 2026-02-16
 
@@ -82,32 +96,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ✅ Configuration management
 
 ### Known Limitations
+
 - Platform support: Linux/Raspberry Pi only (Windows/macOS in progress)
 - ML detection: Framework present, but no trained models yet
 - Mesh networking: Meshtastic/LoRa deferred to post-MVP
-- Test coverage: ~60% (target: >80%)
+- NTP/PPS clock classes not yet implemented (OS clock used via gpsd)
 
 ### Roadmap
 
-See [FEATURES.md](docs/FEATURES.md) and [FUTURE_FEATURES.md](docs/FUTURE_FEATURES.md) for detailed status and planned features.
-
-**Near-term (v0.2.0):**
-- Platform abstraction (Windows/macOS support)
-- Improved test coverage
-- Security hardening (TLS validation, input sanitization)
-- Performance optimizations
-
-**Medium-term (v0.3.0):**
-- ML-based detection with trained models
-- Web dashboard for fleet monitoring
-- Advanced trilateration algorithms
-- Multi-microphone array support
-
-**Long-term (v1.0.0):**
-- Mesh networking (Meshtastic/LoRa)
-- Mobile app integration
-- Cloud service integration
-- Production-ready fleet deployment
+See [docs/STATUS.md](docs/STATUS.md) for detailed component status and roadmap.
 
 ---
 
