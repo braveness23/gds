@@ -26,6 +26,7 @@ from src.output.file_logger import FileLoggerNode
 from src.output.mqtt_output import MQTTOutputNode
 from src.sensors.gps import create_gps_reader
 from src.sensors.static_gps import StaticGPSDevice
+from src.timing.ntp_clock import NTPClock
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,7 @@ class GunshotDetectionSystem:
         self.mqtt_output = None
         self.file_logger = None
         self.buffer_saver = None
+        self.ntp_clock = None
         self.pipeline_nodes = []
 
         # State
@@ -138,7 +140,22 @@ class GunshotDetectionSystem:
             else:
                 logger.info("  - MQTT disabled")
 
-            # 5. Initialize file logger if enabled
+            # 5. Initialize NTP clock monitor if enabled
+            timing_config = self.config.get("timing", {})
+            if timing_config.get("use_ntp", False):
+                self.ntp_clock = NTPClock(
+                    ntp_server=timing_config.get("ntp_server", "pool.ntp.org"),
+                    sync_interval=timing_config.get("ntp_sync_interval", 300.0),
+                    max_offset_ms=timing_config.get("max_offset_ms", 10.0),
+                    node_id=self.config.get("system.node_id", "unknown"),
+                    event_bus=self.event_bus,
+                )
+                self.ntp_clock.start()
+                logger.info("  ✓ NTP clock monitor started")
+            else:
+                logger.info("  - NTP clock monitor disabled")
+
+            # 7. Initialize file logger if enabled
             fl_config = self.config.get("output.file_logger", {})
             if fl_config.get("enabled", False):
                 self.file_logger = FileLoggerNode(
@@ -153,7 +170,7 @@ class GunshotDetectionSystem:
             else:
                 logger.info("  - File logger disabled")
 
-            # 6. Initialize buffer saver if enabled
+            # 8. Initialize buffer saver if enabled
             bs_config = self.config.get("output.buffer_saver", {})
             if bs_config.get("enabled", False):
                 audio_cfg = self.config.get("audio", {})
@@ -172,7 +189,7 @@ class GunshotDetectionSystem:
             else:
                 logger.info("  - Buffer saver disabled")
 
-            # 7. Initialize audio source
+            # 9. Initialize audio source
             audio_config = self.config.get("audio", {})
             # Support both `source` and legacy `source_type` config keys
             source_type = audio_config.get("source") or audio_config.get(
@@ -321,6 +338,10 @@ class GunshotDetectionSystem:
         if self.file_logger:
             logger.info("Stopping file logger...")
             self.file_logger.stop()
+
+        if self.ntp_clock:
+            logger.info("Stopping NTP clock monitor...")
+            self.ntp_clock.stop()
 
         # Stop GPS
         if self.gps_reader:

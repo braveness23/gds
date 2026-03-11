@@ -25,16 +25,17 @@ system:
 
 # ============================================================================
 # TIMING - Critical for trilateration accuracy
-# NOTE: The NTPClock module is not yet implemented. These config keys are
-# reserved for future use. GPS PPS timing is handled at the OS level via
-# chrony — no application-level configuration needed. See docs/GPS_PPS_TIMING.md
+# GPS PPS timing is handled at the OS level (chrony). This section configures
+# the NTPClock monitor which observes offset and publishes warnings to the
+# event bus when drift exceeds max_offset_ms. See docs/GPS_PPS_TIMING.md
 # ============================================================================
 timing:
-  use_pps: true # (future) Use GPS PPS for microsecond timing
-  pps_device: "/dev/pps0" # (future) PPS device path
-  use_ntp: true # (future) Fallback to NTP if no PPS
-  ntp_server: "localhost" # (future) Use local NTP server for fleet
-  ntp_sync_interval: 300 # (future) Sync every 5 minutes
+  use_pps: true # OS-level only; set up chrony+gpsd (see GPS_PPS_TIMING.md)
+  pps_device: "/dev/pps0" # PPS device (referenced by chrony, not Python code)
+  use_ntp: false # Enable NTP offset monitoring (publishes TIMING events)
+  ntp_server: "pool.ntp.org" # NTP server to query for offset monitoring
+  ntp_sync_interval: 300 # Seconds between NTP queries (default: 5 minutes)
+  max_offset_ms: 10.0 # Publish warning if offset exceeds this (10ms = 3.4m error)
 
 # ============================================================================
 # SENSORS
