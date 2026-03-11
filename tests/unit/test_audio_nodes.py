@@ -352,6 +352,17 @@ class TestALSASourceNode:
         result = node.process(buffer)
         assert result is None
 
+    def test_alsa_valid_device_strings(self):
+        """Valid ALSA device strings should not raise."""
+        for device in ("default", "", "hw:0,0", "hw:1,0", "hw:2,3", "plughw:0,0", "plughw:1,2"):
+            ALSASourceNode(device=device)  # should not raise
+
+    def test_alsa_invalid_device_string_raises(self):
+        """Malformed hw:/plughw: device strings should raise ValueError at construction."""
+        for bad in ("hw:abc,0", "hw:0", "hw:,0", "plughw:abc,1", "hw:0,"):
+            with pytest.raises(ValueError, match="Invalid ALSA device string"):
+                ALSASourceNode(device=bad)
+
 
 # ============================================================================
 # FileSourceNode Tests

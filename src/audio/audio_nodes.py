@@ -7,6 +7,7 @@ trilateration accuracy.
 
 
 import logging
+import re
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -139,6 +140,21 @@ class ALSASourceNode(AudioSourceNode):
         self.stream = None
         self.pa = None
         self.logger = logging.getLogger(self.__class__.__name__)
+        self._validate_device_string(device)
+
+    _ALSA_DEVICE_RE = re.compile(r"^(?:plug)?hw:\d+,\d+$")
+
+    def _validate_device_string(self, device: str) -> None:
+        """Raise ValueError if device looks like hw:X,Y but is malformed."""
+        if device in ("default", ""):
+            return
+        if device.startswith("hw:") or device.startswith("plughw:"):
+            if not self._ALSA_DEVICE_RE.match(device):
+                raise ValueError(
+                    f"Invalid ALSA device string '{device}'. "
+                    "Expected format: hw:<card>,<device> (e.g. hw:0,0 or plughw:1,0). "
+                    "Run 'arecord -l' to list available devices."
+                )
 
     def start(self):
         """Start ALSA capture stream."""
