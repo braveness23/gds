@@ -114,6 +114,15 @@ class BaseSensor(ABC, Generic[T]):
         """
         pass
 
+    def disconnect(self):
+        """Disconnect from sensor hardware (public)."""
+        try:
+            self._disconnect()
+        except Exception:
+            # Intentionally broad: _disconnect() is implemented by subclasses
+            self.logger.exception("Disconnect error")
+        self.connected = False
+
     def _disconnect(self):
         """
         Clean up sensor connection.
