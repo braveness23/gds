@@ -156,6 +156,17 @@ def check_system_dependencies():
             print("         Install: brew install portaudio")
         all_ok = False
 
+    # Check soundfile (libsndfile) — required by BufferSaverNode for WAV writing
+    if check_system_library("soundfile"):
+        print("  [OK]   soundfile library accessible")
+    else:
+        print("  [WARN] soundfile library not accessible")
+        if system == "Linux":
+            print("         Install: sudo apt-get install libsndfile1-dev")
+        elif system == "Darwin":
+            print("         Install: brew install libsndfile")
+        all_ok = False
+
     return all_ok
 
 
