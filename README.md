@@ -6,32 +6,37 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A distributed acoustic intelligence platform for edge node fleets with GPS/PPS timing and TDOA trilateration.
+**A distributed acoustic intelligence platform.** Named for *Strix* — the genus of owls that locate prey entirely by sound, using two precisely offset ears to triangulate position in three dimensions. That's exactly what this does.
 
-## What It Does
+*A single node is a strix. A network is a parliament.*
 
-- Listens for acoustic events (gunshots, explosions, thunder) via a microphone
-- Timestamps detections with GPS-synchronized clocks (microsecond precision via PPS)
-- Publishes events to an MQTT broker
-- A central trilateration server calculates source position from time-of-arrival differences across multiple nodes
+> *Sound travels at 343 meters per second. With precise enough clocks and enough ears,*
+> *you can know exactly where it came from.*
 
-**Current status: ~75–80% complete.** Core detection, MQTT publishing, GPS integration, environmental sensors, system monitoring, and remote configuration all work. Comprehensive test suite (77% coverage). See [docs/STATUS.md](docs/STATUS.md).
+📖 **[Read the full vision →](docs/VISION.md)**
 
-## Hardware Requirements
+---
 
-Nodes can be any Linux-capable hardware with audio input and (optionally) GPS. Examples: Raspberry Pi, x86 SBC, ARM SBC, Android.
+strix turns any network of audio-capable devices into a real-time acoustic intelligence system. Nodes detect acoustic events, timestamp them with GPS-disciplined nanosecond precision, and publish to a shared broker. A central fusion server correlates arrivals across nodes using Time Difference of Arrival (TDOA) trilateration and calculates the source location — to within centimeters.
 
-**Minimum:**
+Nodes can be static or moving. They can run on a Raspberry Pi, an Android device, a ruggedized field tablet, a buoy, or any hardware with a microphone and GPS. The network can span a courtyard or a country.
 
-- Any Linux-capable SBC (Raspberry Pi 3B+ or later recommended)
-- I2S MEMS microphone or USB audio interface
-- MicroSD card or local storage (16GB+)
+**Use cases:** gunshot detection, battlefield acoustic awareness, drone and missile tracking, anti-poaching, disaster response survivor location, infrastructure monitoring, wildlife research.
 
-**Recommended:**
+**Current status: ~85–90% complete.** Core detection, MQTT pipeline, GPS/PPS timing (validated to 17ns), TDOA trilateration server, environmental sensors, system monitoring, and remote configuration all work. Comprehensive test suite (78%+ coverage). See [docs/STATUS.md](docs/STATUS.md).
 
-- Raspberry Pi 4 or 5 (or equivalent)
-- GPS module with PPS output (U-blox NEO-M8N)
-- BME280 temperature/humidity sensor (improves trilateration accuracy)
+## Hardware
+
+strix runs on anything with a microphone and GPS. Tested on:
+
+- Raspberry Pi 3B+ / 4 / 5 with GPS HAT (Adafruit Ultimate GPS HAT #2324 validated)
+- Any Linux system with USB audio and serial/USB GPS
+- Android and embedded targets: *in roadmap*
+
+**For full timing accuracy** (required for trilateration):
+- GPS module with PPS output
+- GPS-disciplined clock via chrony (17ns achieved on Pi 3B+)
+- BME280 temperature/humidity sensor (speed-of-sound correction)
 
 ## Quick Start
 
