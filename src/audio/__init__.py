@@ -1,4 +1,17 @@
-# Audio module initialization
-# Main audio nodes are imported directly from audio_nodes.py
+"""Audio input and processing nodes for strix."""
 
-__all__ = []
+from src.audio.audio_nodes import (
+    ALSASourceNode,
+    AudioBuffer,
+    AudioNode,
+    AudioSourceNode,
+    FileSourceNode,
+)
+
+__all__ = [
+    "AudioNode",
+    "AudioSourceNode",
+    "AudioBuffer",
+    "ALSASourceNode",
+    "FileSourceNode",
+]

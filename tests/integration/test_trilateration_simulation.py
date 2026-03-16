@@ -38,7 +38,7 @@ def _run_scenario(scenario_name: str, rng_seed: int = 42):
     Returns:
         list of (event, TriangulationResult) for successful trilaterations.
     """
-    from scripts.trilateration_server import TrilaterationEngine
+    from src.trilateration import TrilaterationEngine
 
     scenario = get_scenario(scenario_name)
     simulator = AcousticSimulator()
@@ -132,7 +132,7 @@ def test_scenario_result_fields(scenario_name):
 @pytest.mark.integration
 def test_poor_geometry_does_not_crash():
     """Collinear-node scenario must not raise; result may be None."""
-    from scripts.trilateration_server import TrilaterationEngine
+    from src.trilateration import TrilaterationEngine
 
     scenario = get_scenario("poor_geometry")
     simulator = AcousticSimulator()
@@ -277,7 +277,7 @@ def test_mqtt_publisher_delivers_payloads(mock_broker):
 @pytest.mark.integration
 def test_mqtt_payload_schema(mock_broker):
     """Published payloads must match Detection.from_mqtt_payload() schema."""
-    from scripts.trilateration_server import Detection
+    from src.trilateration import Detection
 
     scenario = get_scenario("basic_4node")
     simulator = AcousticSimulator()
@@ -312,7 +312,7 @@ def test_mqtt_payload_schema(mock_broker):
 @pytest.mark.integration
 def test_engine_requires_minimum_three_nodes():
     """TrilaterationEngine.trilaterate() returns None with < 3 detections."""
-    from scripts.trilateration_server import Detection, TrilaterationEngine
+    from src.trilateration import Detection, TrilaterationEngine
 
     engine = TrilaterationEngine()
 
