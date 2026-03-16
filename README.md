@@ -13,7 +13,7 @@
 > *Sound travels at 343 meters per second. With precise enough clocks and enough ears,*
 > *you can know exactly where it came from.*
 
-📖 **[Read the full vision →](docs/VISION.md)**
+📖 **[Read the full vision →](docs/VISION.md)** | 🚀 **[Quickstart — zero to simulation in 10 minutes →](docs/QUICKSTART.md)** | 🏗️ **[Architecture →](docs/ARCHITECTURE.md)**
 
 ---
 
@@ -23,7 +23,7 @@ Nodes can be static or moving. They can run on a Raspberry Pi, an Android device
 
 **Use cases:** gunshot detection, battlefield acoustic awareness, drone and missile tracking, anti-poaching, disaster response survivor location, infrastructure monitoring, wildlife research.
 
-**Current status: ~85–90% complete.** Core detection, MQTT pipeline, GPS/PPS timing (validated to 17ns), TDOA trilateration server, environmental sensors, system monitoring, and remote configuration all work. Comprehensive test suite (78%+ coverage). See [docs/STATUS.md](docs/STATUS.md).
+**Current status: ~92–95% complete.** Core detection, MQTT pipeline, GPS/PPS timing (validated to 17ns), TDOA trilateration server (extracted to proper module), acoustic classifier plugin interface, environmental sensors, system monitoring, and remote configuration all work. Comprehensive test suite (78%+ coverage, 459+ tests). See [docs/STATUS.md](docs/STATUS.md).
 
 ## Hardware
 
@@ -145,36 +145,45 @@ Each node operates independently. Network failures don't affect local detection.
 
 ```text
 gds/
-├── main.py                 # entry point
+├── main.py                      # entry point
 ├── src/
-│   ├── core/               # event bus, logging
-│   ├── audio/              # audio sources and pipeline nodes
-│   ├── processing/         # signal processing (HPF, gain, etc.)
-│   ├── detection/          # detection algorithms (Aubio, threshold)
-│   ├── output/             # MQTT output
-│   ├── sensors/            # GPS, environmental sensors
-│   ├── monitoring/         # system monitoring (CPU, memory, disk, temperature)
-│   └── config/             # configuration management
+│   ├── core/                    # event bus, event types
+│   ├── audio/                   # audio sources and pipeline nodes
+│   ├── processing/              # signal processing (HPF, gain, splitter, etc.)
+│   ├── detection/               # detection algorithms (Aubio, threshold)
+│   ├── output/                  # MQTT, file logger, buffer saver
+│   ├── sensors/                 # GPS, environmental sensors
+│   ├── monitoring/              # system health (CPU, memory, disk, temperature)
+│   ├── timing/                  # NTP clock monitoring
+│   ├── remote_config/           # MQTT-based remote configuration
+│   ├── trilateration/           # TDOA engine, fusion server, models
+│   ├── classification/          # AcousticClassifier plugin interface
+│   └── config/                  # configuration management
 ├── scripts/
-│   ├── setup_dev.py        # one-command dev setup
-│   ├── trilateration_server.py  # central positioning server
+│   ├── setup_dev.py             # one-command dev setup
+│   ├── trilateration_server.py  # CLI wrapper for TrilaterationServer
 │   └── update_requirements.py  # regenerate requirements files
-├── tests/                  # pytest suite
-├── tools/                  # diagnostic tools (gps_test.py, env_test.py)
-├── examples/               # config.example.yaml
-└── docs/                   # documentation
+├── tests/
+│   ├── unit/                    # unit tests (459+ passing)
+│   ├── integration/             # simulation + pipeline integration tests
+│   ├── hardware/                # hardware-specific tests (Pi only)
+│   └── simulation/              # acoustic simulation framework
+├── tools/                       # diagnostic tools (gps_test.py, env_test.py)
+├── examples/                    # config.example.yaml
+└── docs/                        # documentation
 ```
 
 ## Documentation
 
 | Doc | Contents |
 | --- | -------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, event bus, MQTT topics, trilateration algorithm, event flow |
-| [docs/SETUP.md](docs/SETUP.md) | Hardware wiring, GPS/PPS, sensors, fleet deployment |
-| [docs/GPS_PPS_TIMING.md](docs/GPS_PPS_TIMING.md) | GPS PPS timing deep-dive — accuracy, chrony setup, verification, common issues |
+| [docs/QUICKSTART.md](docs/QUICKSTART.md) | **Start here** — zero to simulation in 10 minutes, no hardware needed |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, strix/parliament vocabulary, TDOA algorithm, extension points |
+| [docs/SETUP.md](docs/SETUP.md) | Three setup paths: Raspberry Pi, generic Linux, simulation-only |
+| [docs/GPS_PPS_TIMING.md](docs/GPS_PPS_TIMING.md) | GPS PPS timing deep-dive — accuracy, chrony setup, verification |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Testing guide, platform abstraction, security audit |
 | [docs/STATUS.md](docs/STATUS.md) | Component status, roadmap, future features |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute — classifiers, scenarios, output nodes, hardware testing |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ## Troubleshooting

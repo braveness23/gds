@@ -451,6 +451,111 @@ pytest -s tests/unit/test_audio.py::test_aubio
 
 ---
 
+## Adding a custom classifier
+
+Implement `AcousticClassifier` from `src/classification/`:
+
+```python
+from src.classification import AcousticClassifier, ClassificationResult
+import numpy as np
+
+class SpectralClassifier(AcousticClassifier):
+    def classify(
+        self,
+        audio_buffer: np.ndarray,
+        sample_rate: int,
+        detection_event=None,
+    ) -> ClassificationResult:
+        # Analyse spectral shape, attack envelope, RMS, etc.
+        peak = float(np.max(np.abs(audio_buffer)))
+        if peak > 0.85:
+            return ClassificationResult("gunshot", confidence=0.90)
+        return ClassificationResult("unknown", confidence=0.40)
+```
+
+To wire it into the pipeline, instantiate your classifier and call `classify()` inside a `DETECTION` event subscriber. A future pipeline integration hook is planned.
+
+---
+
+## Adding a simulation scenario
+
+Scenarios live in `tests/simulation/scenarios.py`. Each is a `Scenario` dataclass:
+
+```python
+# In tests/simulation/scenarios.py, add to SCENARIOS dict:
+"my_scenario": Scenario(
+    name="my_scenario",
+    nodes=[
+        NodeDef(node_id="n1", latitude=37.77, longitude=-122.41, altitude=10.0),
+        NodeDef(node_id="n2", latitude=37.78, longitude=-122.41, altitude=10.0),
+        NodeDef(node_id="n3", latitude=37.77, longitude=-122.40, altitude=10.0),
+        NodeDef(node_id="n4", latitude=37.78, longitude=-122.40, altitude=10.0),
+    ],
+    events=[
+        EventDef(event_id="e1", latitude=37.775, longitude=-122.405, altitude=0.0, t=0.0),
+    ],
+    tolerance_meters=20.0,
+    min_geometry_score=0.3,
+    expected_num_results=1,
+),
+```
+
+Run with `python tools/run_simulation.py --scenario my_scenario` or in the parametrized integration tests.
+
+---
+
+## Adding an output node
+
+Subclass `AudioNode` and subscribe to `DETECTION` events on the event bus:
+
+```python
+import logging
+from src.audio.audio_nodes import AudioNode
+from src.core.event_bus import EventBus, EventType, Event
+
+class MyOutputNode(AudioNode):
+    def __init__(self, event_bus: EventBus = None):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.running = False
+        if event_bus:
+            event_bus.subscribe(EventType.DETECTION, self._on_detection)
+
+    def _on_detection(self, event: Event):
+        # handle detection event
+        ...
+
+    def start(self):
+        if self.running:
+            return
+        self.running = True
+        self.logger.info("MyOutputNode started")
+
+    def stop(self):
+        self.running = False
+```
+
+Wire it up in `main.py` (or your own script) after creating the `EventBus`.
+
+---
+
+## Hardware testing
+
+Hardware tests live in `tests/hardware/`. They require real hardware and are skipped in CI.
+
+```bash
+# Run hardware tests on a node with GPS + audio
+pytest tests/hardware/ -v
+
+# Individual hardware tests
+pytest tests/hardware/test_serial_gps.py -v   # GPS fix and timing
+pytest tests/hardware/test_i2s_audio.py -v    # I2S audio capture
+pytest tests/hardware/test_integration.py -v  # Full node integration
+```
+
+See `tests/hardware/README.md` for hardware requirements and wiring.
+
+---
+
 ## License
 
 By contributing to this project, you agree that your contributions will be licensed under the [MIT License](LICENSE).
