@@ -1,4 +1,4 @@
-"""Remote configuration server for GDS central management.
+"""Remote configuration server for strix central management.
 
 Manages configuration of multiple nodes via MQTT.
 Provides command interface for config operations.

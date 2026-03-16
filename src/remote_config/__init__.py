@@ -1,6 +1,6 @@
-"""Remote configuration management for GDS.
+"""Remote configuration management for strix.
 
-This module provides secure, reliable remote configuration of GDS nodes
+This module provides secure, reliable remote configuration of strix nodes
 via MQTT with automatic rollback and bricking prevention.
 
 Key Features:

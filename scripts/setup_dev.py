@@ -3,7 +3,7 @@
 Cross-platform development environment setup script.
 
 This script automates the setup of a development environment for the
-Gunshot Detection System project. It works on Windows, macOS, and Linux.
+strix project. It works on Windows, macOS, and Linux.
 
 Features:
 - Creates Python virtual environment
@@ -343,7 +343,7 @@ def print_next_steps(plat):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Set up development environment for GDS project")
+    parser = argparse.ArgumentParser(description="Set up development environment for strix")
     parser.add_argument("--minimal", action="store_true", help="Skip optional dependencies")
     parser.add_argument(
         "--check",
@@ -356,7 +356,7 @@ def main():
     plat = detect_platform()
     project_root = Path(__file__).parent.parent
 
-    print_header("GDS Development Environment Setup")
+    print_header("strix Development Environment Setup")
     print_info(f"Platform: {plat}")
     print_info(f"Project root: {project_root}")
 

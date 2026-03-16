@@ -1,4 +1,4 @@
-# Claude Instructions for GDS Project
+# Claude Instructions for strix
 
 > **About This File**: This document guides how Claude Code assists with this repository. It's a living document - ask Claude to update, clarify, or reorganize as needed. When Claude makes decisions, you can ask "was this based on my instructions?" and Claude will reference specific sections here.
 
@@ -8,15 +8,15 @@
 
 **What this project is:**
 
-- Distributed acoustic gunshot detection system using trilateration for Raspberry Pi fleets with GPS/PPS timing
+- strix: a distributed acoustic intelligence platform using trilateration for edge node fleets with GPS/PPS timing. Designed for gunshot detection and other acoustic event classification.
 
 **Project type:**
 
-- Distributed IoT/embedded system (Raspberry Pi deployment, modular event-driven audio processing pipeline)
+- Distributed IoT/embedded system (any Linux-capable hardware — Raspberry Pi, x86, ARM SBC; modular event-driven audio processing pipeline)
 
 **Tech stack:**
 
-- **Platform:** Edge nodes are Raspberry Pi 3B+/4/5 (Raspberry Pi OS 64-bit, Linux-native); MQTT brokers can be local, remote, or cloud-hosted (public/private clouds); trilateration, dashboards, configuration management, centralized processing and storage will run on various cloud platforms; cross-platform support in progress
+- **Platform:** Edge nodes run on any Linux-capable hardware (Raspberry Pi 3B+/4/5, x86, ARM SBC — Raspberry Pi OS or Debian/Ubuntu 64-bit, Linux-native); MQTT brokers can be local, remote, or cloud-hosted (public/private clouds); trilateration, dashboards, configuration management, centralized processing and storage will run on various cloud platforms; cross-platform support in progress
 - **Language:** Python 3.7+
 - **Audio:** PyAudio, Aubio (onset detection), ALSA (Linux), soundfile
 - **Detection:** Aubio onset detection, simple threshold detection

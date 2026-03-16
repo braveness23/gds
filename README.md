@@ -1,4 +1,4 @@
-# Gunshot Detection System
+# strix
 
 [![CI](https://github.com/braveness23/gds/actions/workflows/ci.yml/badge.svg)](https://github.com/braveness23/gds/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
@@ -6,28 +6,30 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A distributed acoustic gunshot detection and trilateration system for Raspberry Pi fleets with GPS/PPS timing.
+A distributed acoustic intelligence platform for edge node fleets with GPS/PPS timing and TDOA trilateration.
 
 ## What It Does
 
-- Listens for acoustic gunshot events via a microphone
+- Listens for acoustic events (gunshots, explosions, thunder) via a microphone
 - Timestamps detections with GPS-synchronized clocks (microsecond precision via PPS)
 - Publishes events to an MQTT broker
-- A central trilateration server calculates gunshot position from time-of-arrival differences across multiple nodes
+- A central trilateration server calculates source position from time-of-arrival differences across multiple nodes
 
 **Current status: ~75–80% complete.** Core detection, MQTT publishing, GPS integration, environmental sensors, system monitoring, and remote configuration all work. Comprehensive test suite (77% coverage). See [docs/STATUS.md](docs/STATUS.md).
 
 ## Hardware Requirements
 
+Nodes can be any Linux-capable hardware with audio input and (optionally) GPS. Examples: Raspberry Pi, x86 SBC, ARM SBC, Android.
+
 **Minimum:**
 
-- Raspberry Pi 3B+ or later
+- Any Linux-capable SBC (Raspberry Pi 3B+ or later recommended)
 - I2S MEMS microphone or USB audio interface
-- MicroSD card (16GB+)
+- MicroSD card or local storage (16GB+)
 
 **Recommended:**
 
-- Raspberry Pi 4 or 5
+- Raspberry Pi 4 or 5 (or equivalent)
 - GPS module with PPS output (U-blox NEO-M8N)
 - BME280 temperature/humidity sensor (improves trilateration accuracy)
 

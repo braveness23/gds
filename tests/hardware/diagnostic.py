@@ -262,7 +262,7 @@ def main():
     """Run all diagnostic checks."""
     print("\n" + "="*70)
     print("HARDWARE DIAGNOSTIC TOOL")
-    print("Gunshot Detection System")
+    print("strix")
     print("="*70)
 
     results = {}

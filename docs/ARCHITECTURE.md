@@ -1,6 +1,6 @@
 # Architecture Guide
 
-> **TL;DR:** Each Pi node runs an independent event-driven pipeline (Audio → Detect → Event Bus → MQTT). A central trilateration server collects timestamps from all nodes and computes gunshot position using TDOA (Time Difference of Arrival).
+> **TL;DR:** Each strix node runs an independent event-driven pipeline (Audio → Detect → Event Bus → MQTT). A central trilateration server collects timestamps from all nodes and computes acoustic event position using TDOA (Time Difference of Arrival).
 
 ---
 
@@ -8,7 +8,7 @@
 
 The system is **distributed** and **event-driven**:
 
-- Each Raspberry Pi operates independently — network failures don't stop local detection
+- Each node operates independently — network failures don't stop local detection
 - MQTT provides fleet coordination between nodes
 - A central trilateration server aggregates detections for positioning
 
@@ -50,11 +50,11 @@ The system is **distributed** and **event-driven**:
 
 ## Single-Node Process Boundary
 
-Inside one Pi, the event bus and MQTT run in the same process. MQTT is just another subscriber:
+Inside one node, the event bus and MQTT run in the same process. MQTT is just another subscriber:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Raspberry Pi Process                                          │
+│  strix Node Process                                            │
 │                                                                │
 │  ALSASourceNode ──▶ HighPassFilter ──▶ BufferSplitter         │
 │                                              │                 │
@@ -85,14 +85,14 @@ Inside one Pi, the event bus and MQTT run in the same process. MQTT is just anot
 
 ## Full Event Flow
 
-A single gunshot detection flows through the system like this:
+A single acoustic detection flows through the system like this:
 
 1. **Audio callback** (`ALSASourceNode._audio_callback`) — timestamp captured first, samples normalized, buffer emitted
 2. **HPF** (`HighPassFilterNode`) — attenuates frequencies below 5kHz, preserving gunshot energy
 3. **Splitter** (`BufferSplitterNode`) — broadcasts buffer to both detectors in parallel
 4. **Aubio detector** (`AubioOnsetNode`) — processes in `hop_size=512` chunks, detects onset, publishes `DETECTION` event
 5. **Event bus** dispatches to all `DETECTION` subscribers (MQTT output, local logger)
-6. **MQTT output** (`MQTTOutputNode._on_detection_event`) — enriches with GPS + environmental data, publishes JSON to two topics: `gunshot/detections` and `gunshot/<node_id>/detections`
+6. **MQTT output** (`MQTTOutputNode._on_detection_event`) — enriches with GPS + environmental data, publishes JSON to two topics: `gunshot/detections` and `gunshot/<node_id>/detections` (topic names preserved for compatibility)
 7. **Trilateration server** (`scripts/trilateration_server.py`) — collects from all nodes, groups by time window, solves TDOA matrix, emits position with confidence score
 
 ---
@@ -187,7 +187,7 @@ gunshot/
 
 ## TDOA Trilateration Algorithm
 
-> **TL;DR:** Nodes timestamp detections with GPS-synchronized clocks. Time differences between nodes define hyperbolas. Intersections give gunshot position.
+> **TL;DR:** Nodes timestamp detections with GPS-synchronized clocks. Time differences between nodes define hyperbolas. Intersections give source position.
 
 ### Key Concepts
 

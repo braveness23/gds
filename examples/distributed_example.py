@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Distributed fleet example showing MQTT coordination.
+Distributed fleet example for strix showing MQTT coordination.
 
 This demonstrates how multiple nodes publish to a central broker
 and how a coordinator collects detections for trilateration.
@@ -23,7 +23,7 @@ def simulate_node(node_id: str, audio_file: str, broker: str, location: tuple):
     """
     Simulate a single detection node.
 
-    In real deployment, this would run on each Raspberry Pi.
+    In real deployment, this would run on each node (Raspberry Pi, x86, ARM SBC, etc.).
     """
     print(f"\n{'='*60}")
     print(f"Starting Node: {node_id}")

@@ -1,6 +1,6 @@
 # Setup Guide
 
-> **TL;DR:** Install system packages → run `python scripts/setup_dev.py` → configure `config.yaml` → run `python main.py`. For fleet deployment, repeat per node with unique `node_id` and a shared MQTT broker.
+> **TL;DR:** Install system packages → run `python scripts/setup_dev.py` → configure `config.yaml` → run `python main.py`. For fleet deployment, repeat per node with a unique `node_id` and a shared MQTT broker. Nodes can be any Linux-capable hardware (Raspberry Pi, x86, ARM SBC, Android — anything with audio input and GPS).
 
 ---
 
@@ -24,7 +24,7 @@ sudo apt-get update && sudo apt-get install -y \
 brew install portaudio aubio libsndfile
 ```
 
-GPS and GPIO sensors are not supported on macOS (Raspberry Pi only).
+GPS and GPIO sensors require Linux and appropriate hardware; they are not supported on macOS.
 
 ### Windows
 
@@ -151,7 +151,7 @@ location:
 
 ---
 
-## Environmental Sensors (Raspberry Pi)
+## Environmental Sensors (Linux / Raspberry Pi)
 
 Environmental sensors provide temperature-compensated speed of sound for trilateration accuracy.
 
@@ -235,12 +235,14 @@ sensors:
 
 ## Fleet Deployment
 
-### 1. Prepare SD Cards
+### 1. Prepare Nodes
 
-Flash Raspberry Pi OS (64-bit) to each SD card using Raspberry Pi Imager:
+For Raspberry Pi nodes, flash Raspberry Pi OS (64-bit) using Raspberry Pi Imager:
 - Enable SSH in advanced options
-- Set hostnames: `gunshot-001`, `gunshot-002`, etc.
+- Set hostnames: `strix-001`, `strix-002`, etc.
 - Use the same username/password across all nodes
+
+For x86 or other Linux nodes, install Debian/Ubuntu and enable SSH.
 
 ### 2. Initial Node Configuration
 
@@ -274,7 +276,7 @@ python scripts/setup_dev.py
 ```yaml
 # config.yaml — must be unique per node
 system:
-  node_id: "gunshot-001"      # UNIQUE per node
+  node_id: "strix-001"        # UNIQUE per node
 
 output:
   mqtt:
@@ -304,7 +306,7 @@ sudo systemctl restart mosquitto
 ### 6. Start Services
 
 ```bash
-# On each Pi
+# On each node
 sudo cp systemd/gunshot-detector.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable gunshot-detector
@@ -347,6 +349,8 @@ for node in "${NODES[@]}"; do
   echo "=== $node ===" && ssh $node "sudo systemctl status gunshot-detector"
 done
 ```
+
+> The service name `gunshot-detector` and MQTT topics (`gunshot/...`) are preserved for backward compatibility.
 
 **Security hardening checklist:**
 - [ ] Enable MQTT authentication (username/password minimum)

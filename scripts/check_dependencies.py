@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dependency validation tool for GDS project.
+Dependency validation tool for strix.
 
 Checks that all required packages are installed with correct versions
 and that system libraries are accessible.
@@ -190,7 +190,7 @@ def check_venv():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Validate GDS dependencies")
+    parser = argparse.ArgumentParser(description="Validate strix dependencies")
     parser.add_argument(
         "--fix",
         action="store_true",
@@ -201,7 +201,7 @@ def main():
     project_root = Path(__file__).parent.parent
 
     print("=" * 60)
-    print("GDS Dependency Validation")
+    print("strix Dependency Validation")
     print("=" * 60)
 
     # Check Python version
