@@ -25,26 +25,39 @@ python scripts/setup_dev.py
 ## 2. Run the simulation
 
 ```bash
-python tools/run_simulation.py
+python tools/run_simulation.py --scenario basic_4node
 ```
 
-This starts a simulated 4-node parliament. You'll see output like:
+This runs a simulated 4-node parliament against a single shot at the centre. You'll see output like:
 
 ```
-[Simulation] Firing event at (37.7745, -122.4190) t=0.000s
-[Node node_sw] Detection at t=0.023s  (23ms after event)
-[Node node_ne] Detection at t=0.041s  (41ms after event)
-[Node node_nw] Detection at t=0.056s  (56ms after event)
-[Node node_se] Detection at t=0.063s  (63ms after event)
+╔══════════════════════════════════════════════════════════╗
+║          Gunshot Detection — Simulation Runner           ║
+╚══════════════════════════════════════════════════════════╝
+Seed: 42  |  Scenarios: 1
 
-==================================================
-✅ TRILATERATION SUCCESS
-Location:   (37.774501, -122.418998)
-True:       (37.774500, -122.419000)
-Error:      0.3m
-Confidence: 87.4%
-Geometry:   0.81
-==================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📡 Scenario : basic_4node
+   4 static nodes ~200m apart in square, single shot at centre
+   Nodes    : 4
+   Events   : 1
+   Tolerance: 5.0 m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✅ PASS  shot_001
+    True location  : (37.774900, -122.419400)
+    Estimated      : (37.774900, -122.419400)
+    Position error : 0.00 m  (tolerance: 5.0 m)
+    Geometry score : 0.100
+    Confidence     : 73.83%
+    Nodes used     : 4 (node_beta, node_alpha, node_delta, node_gamma)
+    Residual error : 0.00 m
+    Event type     : gunshot
+
+  Summary: 1 trilaterated, 0 skipped
+
+════════════════════════════════════════════════════════════
+✅  All scenarios PASSED
 ```
 
 The simulation uses synthetic timestamps with realistic jitter — no microphone or GPS needed.
@@ -66,8 +79,8 @@ python tools/run_simulation.py --scenario semi_auto_burst
 # Poor geometry (collinear nodes — shows graceful degradation)
 python tools/run_simulation.py --scenario poor_geometry
 
-# List all scenarios
-python tools/run_simulation.py --list
+# See all available scenarios
+python tools/run_simulation.py --help
 ```
 
 ---

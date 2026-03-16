@@ -42,7 +42,8 @@ Edit `/boot/firmware/config.txt` (Pi 4/5) or `/boot/config.txt` (Pi 3):
 ```ini
 enable_uart=1
 dtoverlay=disable-bt          # frees UART from Bluetooth on Pi 3/4
-dtoverlay=pps-gpio,gpiopin=18 # PPS signal on GPIO 18
+dtoverlay=pps-gpio,gpiopin=4  # PPS signal on GPIO 4 (Adafruit GPS HAT #2324)
+                               # GPIO 18 is reserved for I2S audio on Pi boards — do not use for PPS
 ```
 
 Reboot after editing.
@@ -53,7 +54,8 @@ Reboot after editing.
 # /etc/default/gpsd
 START_DAEMON="true"
 USBAUTO="true"
-DEVICES="/dev/ttyAMA0"      # UART GPS; use /dev/ttyUSB0 for USB GPS
+DEVICES="/dev/ttyS0"        # UART GPS on Pi 3B+/4/5 (ttyAMA0 is assigned to Bluetooth on Pi 3B+)
+                              # Use /dev/ttyUSB0 for USB GPS adapters
 GPSD_OPTIONS="-n -G"
 ```
 
@@ -118,7 +120,7 @@ VCC (3.3V) →  Pin 1 (3.3V)
 GND        →  Pin 6 (GND)
 TX         →  Pin 10 (GPIO 15, RXD)
 RX         →  Pin 8  (GPIO 14, TXD)
-PPS        →  Pin 12 (GPIO 18)
+PPS        →  Pin 7  (GPIO 4)
 ```
 
 ---

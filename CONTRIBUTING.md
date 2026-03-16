@@ -453,67 +453,77 @@ pytest -s tests/unit/test_audio.py::test_aubio
 
 ## Adding a custom classifier
 
-Implement `AcousticClassifier` from `src/classification/`:
+> **Note:** The `AcousticClassifier` base class and `ClassificationResult` dataclass are being added in the framework extraction PR (`feat/framework-extraction`). Once merged, the interface will live in `src/classification/base.py`.
+
+The pattern will be:
 
 ```python
-from src.classification import AcousticClassifier, ClassificationResult
+# TODO: import paths will be correct after feat/framework-extraction merges
+# from src.classification.base import AcousticClassifier, ClassificationResult
 import numpy as np
 
-class SpectralClassifier(AcousticClassifier):
+class SpectralClassifier:  # will subclass AcousticClassifier after merge
     def classify(
         self,
         audio_buffer: np.ndarray,
         sample_rate: int,
         detection_event=None,
-    ) -> ClassificationResult:
+    ):
         # Analyse spectral shape, attack envelope, RMS, etc.
         peak = float(np.max(np.abs(audio_buffer)))
         if peak > 0.85:
-            return ClassificationResult("gunshot", confidence=0.90)
-        return ClassificationResult("unknown", confidence=0.40)
+            return {"label": "gunshot", "confidence": 0.90}
+        return {"label": "unknown", "confidence": 0.40}
 ```
 
-To wire it into the pipeline, instantiate your classifier and call `classify()` inside a `DETECTION` event subscriber. A future pipeline integration hook is planned.
+To wire it into the pipeline, instantiate your classifier and call `classify()` inside a `DETECTION` event subscriber.
 
 ---
 
 ## Adding a simulation scenario
 
-Scenarios live in `tests/simulation/scenarios.py`. Each is a `Scenario` dataclass:
+Scenarios live in `tests/simulation/scenarios.py`. Each is a factory function returning a `SimulationScenario` dataclass:
 
 ```python
-# In tests/simulation/scenarios.py, add to SCENARIOS dict:
-"my_scenario": Scenario(
-    name="my_scenario",
-    nodes=[
-        NodeDef(node_id="n1", latitude=37.77, longitude=-122.41, altitude=10.0),
-        NodeDef(node_id="n2", latitude=37.78, longitude=-122.41, altitude=10.0),
-        NodeDef(node_id="n3", latitude=37.77, longitude=-122.40, altitude=10.0),
-        NodeDef(node_id="n4", latitude=37.78, longitude=-122.40, altitude=10.0),
-    ],
-    events=[
-        EventDef(event_id="e1", latitude=37.775, longitude=-122.405, altitude=0.0, t=0.0),
-    ],
-    tolerance_meters=20.0,
-    min_geometry_score=0.3,
-    expected_num_results=1,
-),
+import time
+from tests.simulation.scenarios import SimulationScenario
+from tests.simulation.acoustic_simulator import AcousticEvent, SimulatedNode
+
+def my_scenario() -> SimulationScenario:
+    t0 = time.time()
+    return SimulationScenario(
+        name="my_scenario",
+        description="4 nodes in a square, single shot at centre",
+        nodes=[
+            SimulatedNode("n1", latitude=37.77, longitude=-122.41, altitude=10.0),
+            SimulatedNode("n2", latitude=37.78, longitude=-122.41, altitude=10.0),
+            SimulatedNode("n3", latitude=37.77, longitude=-122.40, altitude=10.0),
+            SimulatedNode("n4", latitude=37.78, longitude=-122.40, altitude=10.0),
+        ],
+        events=[
+            AcousticEvent("e1", latitude=37.775, longitude=-122.405, altitude=0.0, timestamp=t0),
+        ],
+        tolerance_meters=20.0,
+        min_geometry_score=0.3,
+        expected_num_results=1,
+    )
 ```
 
-Run with `python tools/run_simulation.py --scenario my_scenario` or in the parametrized integration tests.
+Register it by adding `"my_scenario": my_scenario` to the `SCENARIOS` dict at the bottom of `scenarios.py`. Run with `python tools/run_simulation.py --scenario my_scenario` or in the parametrized integration tests.
 
 ---
 
 ## Adding an output node
 
-Subclass `AudioNode` and subscribe to `DETECTION` events on the event bus:
+There are two patterns depending on what your output node needs:
+
+**Pattern 1 — Event subscriber** (reacts to detections, no audio buffer access): most outputs use this. See `MQTTOutputNode` and `FileLoggerNode` for examples.
 
 ```python
 import logging
-from src.audio.audio_nodes import AudioNode
 from src.core.event_bus import EventBus, EventType, Event
 
-class MyOutputNode(AudioNode):
+class MyOutputNode:
     def __init__(self, event_bus: EventBus = None):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.running = False
@@ -532,6 +542,18 @@ class MyOutputNode(AudioNode):
 
     def stop(self):
         self.running = False
+```
+
+**Pattern 2 — Pipeline node** (processes raw audio buffers): subclass `AudioNode` and implement `process()`. Use this only when your output needs access to the audio data (e.g. saving clips). See `BufferSaverNode` for an example.
+
+```python
+import numpy as np
+from src.audio.audio_nodes import AudioNode
+
+class MyAudioOutputNode(AudioNode):
+    def process(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
+        # process audio buffer, return (optionally modified) buffer
+        return audio
 ```
 
 Wire it up in `main.py` (or your own script) after creating the `EventBus`.

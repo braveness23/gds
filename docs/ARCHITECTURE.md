@@ -93,15 +93,15 @@ A parliament fusion server:
 | `src/timing/` | `NTPClock` — monitors NTP offset, fires TIMING events when drift is high |
 | `src/monitoring/` | `SystemMonitorNode` — CPU, memory, disk, temperature via psutil |
 | `src/remote_config/` | MQTT-based remote configuration with HMAC auth and safety checks |
-| `src/trilateration/` | `TrilaterationEngine` (pure math), `TrilaterationServer` (MQTT integration) |
-| `src/classification/` | `AcousticClassifier` plugin interface — implement to add custom classifiers |
+| `src/trilateration/` | `TrilaterationEngine` (pure math), `TrilaterationServer` (MQTT integration) — coming from `feat/framework-extraction` |
+| `src/classification/` | `AcousticClassifier` plugin interface — coming from `feat/framework-extraction` (not yet merged) |
 | `src/config/` | `Config` — YAML/JSON config with dot-notation and deep merge |
 
 ---
 
 ## Full event flow
 
-1. **Audio callback** (`ALSASourceNode._audio_callback`) — timestamp captured first, samples normalized, `AUDIO` event emitted
+1. **Audio callback** (`ALSASourceNode._audio_callback`) — timestamp captured first, samples normalized, buffer passed directly to the next pipeline node via method call (no event bus; audio flows through pipeline nodes via direct calls, not events)
 2. **High-pass filter** (`HighPassFilterNode`) — attenuates frequencies below ~5kHz, preserving impulsive energy
 3. **Buffer splitter** (`BufferSplitterNode`) — fans out audio buffer to all detector subscribers in parallel
 4. **Aubio detector** (`AubioOnsetNode`) — detects onset in `hop_size=512` chunks, publishes `DETECTION` event
@@ -233,28 +233,29 @@ See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md) for setup, verification commands, and
 
 ### Custom classifier
 
+> `AcousticClassifier` and `ClassificationResult` are being added in the `feat/framework-extraction` branch. After merge they will live in `src/classification/base.py`.
+
 ```python
-from src.classification import AcousticClassifier, ClassificationResult
+# Available after feat/framework-extraction merges:
+# from src.classification.base import AcousticClassifier, ClassificationResult
 import numpy as np
 
-class GunVsFireworksClassifier(AcousticClassifier):
+class GunVsFireworksClassifier:  # will subclass AcousticClassifier after merge
     def classify(self, audio_buffer: np.ndarray, sample_rate: int,
-                 detection_event=None) -> ClassificationResult:
-        # Analyse spectral shape, attack envelope, etc.
+                 detection_event=None):
         peak = np.max(np.abs(audio_buffer))
         event_type = "gunshot" if peak > 0.8 else "fireworks"
-        return ClassificationResult(event_type=event_type, confidence=0.75)
+        return {"event_type": event_type, "confidence": 0.75}
 ```
 
 ### Custom output node
 
-Subclass `AudioNode`, subscribe to `DETECTION` events on the bus:
+Subscribe to `DETECTION` events on the event bus (do not subclass `AudioNode` unless you need raw audio buffer access — see `CONTRIBUTING.md` for both patterns):
 
 ```python
-from src.audio.audio_nodes import AudioNode
 from src.core.event_bus import EventBus, EventType
 
-class WebhookOutputNode(AudioNode):
+class WebhookOutputNode:
     def __init__(self, url: str, event_bus: EventBus = None):
         self.url = url
         self.logger = logging.getLogger(self.__class__.__name__)
