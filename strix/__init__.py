@@ -1,9 +1,11 @@
 """
-strix — distributed acoustic intelligence platform.
+strix root-level shim — for repo-local imports only.
 
-A single node is a strix. A network is a parliament.
+When the package is installed via pip, use `import strix` which resolves
+to `src/strix/__init__.py` via setup.py's package_dir={"": "src"}.
 
-This namespace re-exports the public API from the src package.
+This file exists only for uninstalled/editable-mode repo usage where
+PYTHONPATH includes the repo root.
 """
 
 from src import (

@@ -141,9 +141,9 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "strix=main:main",
-            "strix-server=scripts.trilateration_server:main",
-            "gunshot-detector=main:main",  # kept for backwards compatibility
+            "strix=strix.cli:main",
+            "strix-server=strix.cli:trilateration",
+            "gunshot-detector=strix.cli:main",  # kept for backwards compatibility
         ],
     },
     classifiers=[

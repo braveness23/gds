@@ -159,19 +159,27 @@ class TrilaterationServer:
                     if len(self.detection_buffer) < self.min_nodes:
                         continue
 
-                    # Find groups of detections within time window
-                    groups = self._find_detection_groups()
+                    # Prune stale detections (Fix 2: prevent unbounded growth)
+                    if self.detection_buffer:
+                        newest = max(d.timestamp for d in self.detection_buffer)
+                        cutoff = newest - self.time_window * 2
+                        self.detection_buffer = [
+                            d for d in self.detection_buffer if d.timestamp >= cutoff
+                        ]
 
-                    if not groups:
-                        continue
+                    # Find groups and copy out — lock released before processing (Fix 1)
+                    groups_to_process = list(self._find_detection_groups())
 
-                    logging.getLogger(__name__).info(
-                        f"\n[TrilaterationServer] Found {len(groups)} detection group(s)"
-                    )
+                if not groups_to_process:
+                    continue
 
-                    # Process each group
-                    for group in groups:
-                        self._process_group(group)
+                logging.getLogger(__name__).info(
+                    f"\n[TrilaterationServer] Found {len(groups_to_process)} detection group(s)"
+                )
+
+                # Process without holding buffer_lock to avoid deadlock
+                for group in groups_to_process:
+                    self._process_group(group)
 
             except Exception:
                 logging.getLogger(__name__).exception(
@@ -199,6 +207,7 @@ class TrilaterationServer:
 
             # Find all detections within time window
             group = [detection]
+            group_node_ids = {detection.node_id}  # Fix 3: O(1) membership checks
             used_indices.add(i)
 
             for j, other in enumerate(sorted_detections[i + 1 :], start=i + 1):
@@ -209,8 +218,9 @@ class TrilaterationServer:
 
                 if time_diff <= self.time_window:
                     # Same node shouldn't trigger twice in same window
-                    if other.node_id not in [d.node_id for d in group]:
+                    if other.node_id not in group_node_ids:
                         group.append(other)
+                        group_node_ids.add(other.node_id)
                         used_indices.add(j)
                 else:
                     # Outside time window, stop searching
