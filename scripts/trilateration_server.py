@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Trilateration Server for Gunshot Detection System
+Trilateration Server for strix
 
 This server:
 - Subscribes to detection events from all nodes via MQTT

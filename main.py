@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main application orchestrator for gunshot detection system.
+Main application orchestrator for strix.
 
 This is the primary entry point that:
 - Loads configuration
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 class GunshotDetectionSystem:
     """
-    Main orchestrator for the gunshot detection system.
+    Main orchestrator for strix.
 
     Responsibilities:
     - Load configuration
@@ -71,7 +71,7 @@ class GunshotDetectionSystem:
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
-        logger.info("Initializing gunshot detection system")
+        logger.info("Initializing strix")
         logger.info(f"Config: {config_path}")
 
     def initialize(self) -> bool:
@@ -277,7 +277,7 @@ class GunshotDetectionSystem:
             return
 
         logger.info(f"\n{'='*60}")
-        logger.info("Starting Gunshot Detection System")
+        logger.info("Starting strix")
         logger.info(f"{'='*60}")
 
         self.running = True
@@ -320,7 +320,7 @@ class GunshotDetectionSystem:
             return
 
         logger.info(f"\n{'='*60}")
-        logger.info("Stopping Gunshot Detection System")
+        logger.info("Stopping strix")
         logger.info(f"{'='*60}")
 
         self.running = False
@@ -417,7 +417,7 @@ def main():
     except Exception:
         logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(
-        description="Gunshot Detection System",
+        description="strix — distributed acoustic intelligence platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -470,8 +470,8 @@ Configuration:
     logger.info(
         """
 ╔════════════════════════════════════════════════════════════╗
-║        Gunshot Detection System v1.0                       ║
-║        Distributed Acoustic Event Detection                ║
+║        strix v1.0                                          ║
+║        Distributed Acoustic Intelligence Platform          ║
 ╚════════════════════════════════════════════════════════════╝
     """
     )

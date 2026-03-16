@@ -1,4 +1,4 @@
-# Gunshot Detection System - Example Configuration
+# strix - Example Configuration
 # Copy this file to config.yaml and customize for your setup
 #
 # CREDENTIALS — never put real passwords in config.yaml.
@@ -14,7 +14,7 @@
 #   GDS_REMOTE_MQTT_USERNAME remote_config.mqtt.username
 #   GDS_REMOTE_MQTT_PASSWORD remote_config.mqtt.password
 #
-# Example (Raspberry Pi): add to /etc/environment or ~/.bashrc:
+# Example: add to /etc/environment or ~/.bashrc:
 #   export GDS_MQTT_PASSWORD="your-password"
 
 system:

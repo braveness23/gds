@@ -1,4 +1,4 @@
-# Contributing to Gunshot Detection System
+# Contributing to strix
 
 Thank you for your interest in contributing to this project! This guide will help you get started.
 
@@ -32,7 +32,7 @@ This project follows a simple code of conduct:
 ### Prerequisites
 
 - Python 3.7 or higher
-- Raspberry Pi (for hardware testing) or Linux/macOS/Windows (for development)
+- Any Linux-capable hardware for hardware testing (Raspberry Pi, x86, ARM SBC — anything with audio input and GPS), or Linux/macOS/Windows for development
 - Basic understanding of audio processing and Python
 
 ### Quick Start
@@ -85,7 +85,7 @@ pytest
 Some features require system packages. See [docs/SETUP.md](docs/SETUP.md) for details.
 
 **For audio/GPS testing:**
-- Raspberry Pi OS or Linux with ALSA/PortAudio
+- Any Linux-capable hardware (Raspberry Pi, x86, ARM SBC, etc.) with ALSA/PortAudio
 - GPS module (optional, can use mock GPS)
 - MQTT broker (optional, can use test.mosquitto.org)
 
@@ -318,10 +318,10 @@ Use the GitHub issue template. Include:
 - **Description** - What happened vs what you expected
 - **Steps to reproduce** - Detailed steps to trigger the bug
 - **Environment:**
-  - OS: Raspberry Pi OS / Ubuntu / macOS / Windows
+  - OS: Raspberry Pi OS / Ubuntu / Debian / macOS / Windows
   - Python version: `python --version`
   - Package versions: `pip list | grep -E "aubio|numpy|scipy"`
-  - Hardware: Raspberry Pi model, GPS module, etc.
+  - Hardware: board type, GPS module, microphone, etc.
 - **Logs** - Error messages, stack traces, relevant log output
 - **Screenshots** - If applicable
 
@@ -382,13 +382,13 @@ python scripts/update_requirements.py
 pip install -e .[dev]
 ```
 
-**Test on Raspberry Pi:**
+**Test on target hardware:**
 ```bash
-# Copy to Pi
-scp -r . pi@raspberrypi:~/gds
+# Copy to node
+scp -r . user@hostname:~/gds
 
-# SSH to Pi
-ssh pi@raspberrypi
+# SSH to node
+ssh user@hostname
 cd ~/gds
 
 # Run tests

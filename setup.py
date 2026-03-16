@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup script for Gunshot Detection System.
+"""Setup script for strix.
 
 Enforcement: This script prefers being run from the project's `.venv`.
 If not executed with the `.venv` interpreter, the script will refuse to
@@ -75,7 +75,7 @@ long_description = (
 setup(
     name="gunshot-detection-system",
     version="0.1.0",
-    description="Distributed gunshot detection system with trilateration",
+    description="strix: distributed acoustic intelligence platform",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="braveness23",

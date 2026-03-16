@@ -1,4 +1,4 @@
-"""Remote configuration client for GDS nodes.
+"""Remote configuration client for strix nodes.
 
 Receives configuration commands from central server via MQTT,
 applies them safely with automatic rollback protection.

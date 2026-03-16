@@ -1,4 +1,4 @@
-"""Audio source nodes for the gunshot detection system.
+"""Audio source nodes for strix.
 
 This module provides audio input sources that capture timestamped audio buffers.
 All timestamps are captured at the earliest possible moment (buffer arrival) for
