@@ -18,7 +18,7 @@ _root = Path(__file__).parent.parent
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
-from scripts.trilateration_server import TrilaterationEngine
+from src.trilateration.engine import TrilaterationEngine
 from tests.simulation.acoustic_simulator import AcousticSimulator, haversine_distance
 from tests.simulation.mqtt_publisher import to_detection_objects
 from tests.simulation.scenarios import SCENARIOS, get_scenario
