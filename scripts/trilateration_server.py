@@ -225,47 +225,40 @@ class TrilaterationEngine:
         """
         Solve for source position using TDOA multilateration.
 
-        This uses a linearized least-squares approach.
+        Uses the augmented linearised TDOA system that treats the unknown
+        source-to-reference distance (d0) as an extra variable, giving the
+        exact closed-form solution for n >= 4 sensors and a good least-norm
+        approximation for n = 3.
+
+        For sensor i relative to reference sensor 0 (at origin):
+            2*(si)·x  +  2*rii0*d0  =  |si|²  -  rii0²
+        where rii0 = c*(ti - t0) is the TDOA range difference.
         """
         n = len(positions)
-
-        # Use first sensor as reference
         ref_pos = positions[0]
 
-        # Build matrices for least squares: A * x = b
-        # where x is the source position
-        A = np.zeros((n - 1, 3))
+        # Augmented matrix: columns [x, y, z, d0]
+        A_aug = np.zeros((n - 1, 4))
         b = np.zeros(n - 1)
 
         for i in range(1, n):
-            # Vector from reference to sensor i
-            diff = positions[i] - ref_pos
+            diff = positions[i] - ref_pos         # si vector (ref at origin)
+            d_sensor = np.linalg.norm(diff)        # inter-sensor distance |si|
+            rii0 = distance_diffs[i]               # TDOA range difference
 
-            # Distance from reference to sensor i
-            d_ref_i = np.linalg.norm(diff)
+            A_aug[i - 1, :3] = 2 * diff            # position columns
+            A_aug[i - 1, 3] = 2 * rii0             # d0 column
+            b[i - 1] = d_sensor ** 2 - rii0 ** 2  # correct RHS
 
-            # Build matrix row
-            A[i - 1] = 2 * diff
-
-            b[i - 1] = (
-                distance_diffs[i] ** 2
-                - d_ref_i**2
-                + np.dot(ref_pos, ref_pos)
-                - np.dot(positions[i], positions[i])
-            )
-
-        # Solve least squares: A * x = b
         try:
-            x, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
+            result, _, _, _ = np.linalg.lstsq(A_aug, b, rcond=None)
         except np.linalg.LinAlgError:
-            raise ValueError("Singular matrix in least squares")
+            raise ValueError("Singular matrix in augmented TDOA least squares")
 
-        # Calculate residual error
-        if len(residuals) > 0:
-            residual = np.sqrt(residuals[0] / (n - 1))
-        else:
-            # Calculate manually if lstsq doesn't return residuals
-            residual = np.sqrt(np.mean((A @ x - b) ** 2))
+        x = result[:3]   # position estimate (ignore d0 at index 3)
+
+        # Residual: RMS of equation errors
+        residual = float(np.sqrt(np.mean((A_aug @ result - b) ** 2)))
 
         return x, residual
 
