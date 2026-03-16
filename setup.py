@@ -73,8 +73,8 @@ long_description = (
 )
 
 setup(
-    name="gunshot-detection-system",
-    version="0.1.0",
+    name="strix-acoustic",  # placeholder until PyPI name resolved; strix is taken
+    version="0.2.0",
     description="strix: distributed acoustic intelligence platform",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -94,18 +94,32 @@ setup(
         # Other core dependencies
         "soundfile~=0.10.3",
         "PyYAML~=5.4",
-        "paho-mqtt~=1.6.1",
         "psutil~=5.8.0",
         "ntplib~=0.3.4",
     ],
     extras_require={
+        "mqtt": [
+            "paho-mqtt~=1.6.1",
+        ],
         "sensors": [
             "gps>=3.19",
             "adafruit-circuitpython-bme280>=2.6.0",
             "adafruit-circuitpython-dht>=3.7.0",
             "adafruit-blinka>=8.0.0",
         ],
+        "simulation": [
+            "pytest==7.4.3",
+            "pytest-mock==3.12.0",
+        ],
         "meshtastic": [
+            "meshtastic>=2.0.0",
+        ],
+        "full": [
+            "paho-mqtt~=1.6.1",
+            "gps>=3.19",
+            "adafruit-circuitpython-bme280>=2.6.0",
+            "adafruit-circuitpython-dht>=3.7.0",
+            "adafruit-blinka>=8.0.0",
             "meshtastic>=2.0.0",
         ],
         "dev": [
@@ -121,11 +135,15 @@ setup(
             "mypy==1.5.1",
             # Pre-commit hooks
             "pre-commit==3.4.0",
+            # MQTT needed for integration tests
+            "paho-mqtt~=1.6.1",
         ],
     },
     entry_points={
         "console_scripts": [
-            "gunshot-detector=main:main",
+            "strix=main:main",
+            "strix-server=scripts.trilateration_server:main",
+            "gunshot-detector=main:main",  # kept for backwards compatibility
         ],
     },
     classifiers=[
