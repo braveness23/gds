@@ -44,7 +44,7 @@ class ConfigChange:
 
 class RemoteConfigServer:
     """
-    Server for managing remote configuration of GDS nodes.
+    Server for managing remote configuration of strix nodes.
 
     Topic Structure:
     - gunshot/config/{node_id}/set      → Send configuration changes

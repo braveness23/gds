@@ -1,7 +1,7 @@
 """MQTT publisher for simulation detections.
 
 Converts SimulatedDetection objects to MQTT payloads matching the schema
-expected by scripts/trilateration_server.py Detection.from_mqtt_payload().
+expected by src.trilateration.models.Detection.from_mqtt_payload().
 
 Can publish via MockMQTTBroker (for integration tests) or a real broker.
 """
@@ -43,9 +43,9 @@ def to_detection_objects(sim_detections: List[SimulatedDetection]) -> list:
         sim_detections: List of SimulatedDetection from AcousticSimulator.
 
     Returns:
-        List of scripts.trilateration_server.Detection objects.
+        List of src.trilateration.models.Detection objects.
     """
-    from scripts.trilateration_server import Detection
+    from src.trilateration.models import Detection
 
     return [
         Detection.from_mqtt_payload(detection_to_payload(sd))

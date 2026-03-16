@@ -19,7 +19,7 @@
 | PPS signal | ✅ Clean 1Hz | GPIO 4, confirmed via ppstest |
 | chrony | ✅ Stratum 1 | Reference: PPS, 17ns system offset |
 | I2S audio | ✅ Operational | Google Voice HAT, capture device ready |
-| GDS codebase | ✅ Compatible | Repo present at `~/gds` on node |
+| strix codebase | ✅ Compatible | Repo present at `~/gds` on node |
 
 **Trilateration timing error: ~6mm at 17ns offset.**
 (Timing model: 1ms → 0.34m; 17ns → 0.006m)
@@ -150,7 +150,7 @@ Root dispersion : 0.000114355 seconds
 
 ---
 
-## GDS Code Compatibility Notes
+## strix Code Compatibility Notes
 
 ### GPSReader (gpsd mode)
 - Connects to gpsd at `localhost:2947` — now working correctly with `ttyS0`
@@ -212,4 +212,4 @@ This node is ready for multi-node simulation. Next steps:
 
 ---
 
-*Validated against GDS source: `src/sensors/gps.py`, `src/timing/ntp_clock.py`, `scripts/trilateration_server.py`*
+*Validated against strix source: `src/sensors/gps.py`, `src/timing/ntp_clock.py`, `scripts/trilateration_server.py`*
