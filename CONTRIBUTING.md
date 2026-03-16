@@ -2,6 +2,17 @@
 
 Thank you for your interest in contributing to this project! This guide will help you get started.
 
+## ⚠️ Privacy — No PII in the Repository
+
+**Do not commit real-world location data.** This includes:
+- GPS coordinates (latitude, longitude, altitude) of actual deployment sites
+- Node IP addresses, hostnames, or network topology of real deployments
+- Any personally identifiable information about operators or sites
+
+Use placeholder values in config examples and test fixtures (e.g. `lat: 0.0`, `lon: 0.0`
+or clearly fictional coordinates). Validation reports and deployment notes must redact
+real coordinates before being committed.
+
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
