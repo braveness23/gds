@@ -451,6 +451,133 @@ pytest -s tests/unit/test_audio.py::test_aubio
 
 ---
 
+## Adding a custom classifier
+
+> **Note:** The `AcousticClassifier` base class and `ClassificationResult` dataclass are being added in the framework extraction PR (`feat/framework-extraction`). Once merged, the interface will live in `src/classification/base.py`.
+
+The pattern will be:
+
+```python
+# TODO: import paths will be correct after feat/framework-extraction merges
+# from src.classification.base import AcousticClassifier, ClassificationResult
+import numpy as np
+
+class SpectralClassifier:  # will subclass AcousticClassifier after merge
+    def classify(
+        self,
+        audio_buffer: np.ndarray,
+        sample_rate: int,
+        detection_event=None,
+    ):
+        # Analyse spectral shape, attack envelope, RMS, etc.
+        peak = float(np.max(np.abs(audio_buffer)))
+        if peak > 0.85:
+            return {"label": "gunshot", "confidence": 0.90}
+        return {"label": "unknown", "confidence": 0.40}
+```
+
+To wire it into the pipeline, instantiate your classifier and call `classify()` inside a `DETECTION` event subscriber.
+
+---
+
+## Adding a simulation scenario
+
+Scenarios live in `tests/simulation/scenarios.py`. Each is a factory function returning a `SimulationScenario` dataclass:
+
+```python
+import time
+from tests.simulation.scenarios import SimulationScenario
+from tests.simulation.acoustic_simulator import AcousticEvent, SimulatedNode
+
+def my_scenario() -> SimulationScenario:
+    t0 = time.time()
+    return SimulationScenario(
+        name="my_scenario",
+        description="4 nodes in a square, single shot at centre",
+        nodes=[
+            SimulatedNode("n1", latitude=37.77, longitude=-122.41, altitude=10.0),
+            SimulatedNode("n2", latitude=37.78, longitude=-122.41, altitude=10.0),
+            SimulatedNode("n3", latitude=37.77, longitude=-122.40, altitude=10.0),
+            SimulatedNode("n4", latitude=37.78, longitude=-122.40, altitude=10.0),
+        ],
+        events=[
+            AcousticEvent("e1", latitude=37.775, longitude=-122.405, altitude=0.0, timestamp=t0),
+        ],
+        tolerance_meters=20.0,
+        min_geometry_score=0.3,
+        expected_num_results=1,
+    )
+```
+
+Register it by adding `"my_scenario": my_scenario` to the `SCENARIOS` dict at the bottom of `scenarios.py`. Run with `python tools/run_simulation.py --scenario my_scenario` or in the parametrized integration tests.
+
+---
+
+## Adding an output node
+
+There are two patterns depending on what your output node needs:
+
+**Pattern 1 — Event subscriber** (reacts to detections, no audio buffer access): most outputs use this. See `MQTTOutputNode` and `FileLoggerNode` for examples.
+
+```python
+import logging
+from src.core.event_bus import EventBus, EventType, Event
+
+class MyOutputNode:
+    def __init__(self, event_bus: EventBus = None):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.running = False
+        if event_bus:
+            event_bus.subscribe(EventType.DETECTION, self._on_detection)
+
+    def _on_detection(self, event: Event):
+        # handle detection event
+        ...
+
+    def start(self):
+        if self.running:
+            return
+        self.running = True
+        self.logger.info("MyOutputNode started")
+
+    def stop(self):
+        self.running = False
+```
+
+**Pattern 2 — Pipeline node** (processes raw audio buffers): subclass `AudioNode` and implement `process()`. Use this only when your output needs access to the audio data (e.g. saving clips). See `BufferSaverNode` for an example.
+
+```python
+import numpy as np
+from src.audio.audio_nodes import AudioNode
+
+class MyAudioOutputNode(AudioNode):
+    def process(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
+        # process audio buffer, return (optionally modified) buffer
+        return audio
+```
+
+Wire it up in `main.py` (or your own script) after creating the `EventBus`.
+
+---
+
+## Hardware testing
+
+Hardware tests live in `tests/hardware/`. They require real hardware and are skipped in CI.
+
+```bash
+# Run hardware tests on a node with GPS + audio
+pytest tests/hardware/ -v
+
+# Individual hardware tests
+pytest tests/hardware/test_serial_gps.py -v   # GPS fix and timing
+pytest tests/hardware/test_i2s_audio.py -v    # I2S audio capture
+pytest tests/hardware/test_integration.py -v  # Full node integration
+```
+
+See `tests/hardware/README.md` for hardware requirements and wiring.
+
+---
+
 ## License
 
 By contributing to this project, you agree that your contributions will be licensed under the [MIT License](LICENSE).

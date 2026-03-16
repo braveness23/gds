@@ -1,56 +1,53 @@
-# Architecture Guide
+# Architecture
 
-> **TL;DR:** Each strix node runs an independent event-driven pipeline (Audio → Detect → Event Bus → MQTT). A central trilateration server collects timestamps from all nodes and computes acoustic event position using TDOA (Time Difference of Arrival).
+> **TL;DR:** A strix node is a self-contained acoustic sensor that detects events and timestamps them with GPS-disciplined precision. A parliament is a network of nodes. A central fusion server collects TDOA measurements from all nodes and computes the sound source location.
 
----
-
-## System Overview
-
-The system is **distributed** and **event-driven**:
-
-- Each node operates independently — network failures don't stop local detection
-- MQTT provides fleet coordination between nodes
-- A central trilateration server aggregates detections for positioning
-
-```
-┌─────────────────┐
-│  Audio Source   │  (I2S/ALSA microphone)
-│  + GPS/PPS      │
-│  + Env Sensors  │
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│   Processing    │  (HPF filter, mono conversion, gain)
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│   Detectors     │  (Aubio onset, threshold)
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│   Event Bus     │  (in-process pub/sub, thread-safe)
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│    Outputs      │  (MQTT)
-└─────────────────┘
-         │ MQTT
-         ▼
-┌──────────────────────────────────────┐
-│              MQTT Broker             │
-└──────────┬───────────────────────────┘
-           ▼                       ▼
-  ┌─────────────────┐    ┌──────────────────┐
-  │ Trilateration   │    │  Dashboard /     │
-  │    Server       │    │  Fleet Monitor   │
-  └─────────────────┘    └──────────────────┘
-```
+*A single node is a strix. A network is a parliament.*
 
 ---
 
-## Single-Node Process Boundary
+## What strix does
 
-Inside one node, the event bus and MQTT run in the same process. MQTT is just another subscriber:
+strix turns any collection of audio-capable devices into a distributed acoustic intelligence system. Each node:
+
+1. Captures audio continuously
+2. Detects acoustic events (gunshots, explosions, thunder)
+3. Timestamps the detection with GPS-disciplined precision (< 1μs with PPS)
+4. Publishes the timestamp and location to a shared MQTT broker
+
+A parliament fusion server:
+1. Collects detections from all nodes
+2. Groups detections by time proximity
+3. Solves the TDOA system to find the sound source
+4. Publishes a `TriangulationResult` with coordinates and confidence
+
+---
+
+## System overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  SENSOR LAYER — each strix node                             │
+│                                                             │
+│  Microphone ──▶ Audio Pipeline ──▶ Detector ──▶ Event Bus  │
+│                                                    │        │
+│  GPS/PPS ──▶ NTPClock ──▶ MQTT Output ────────────┘        │
+│              (stratum 1)                                    │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ MQTT  (gunshot/detections)
+┌───────────────────────────▼─────────────────────────────────┐
+│  FUSION LAYER — parliament server                           │
+│                                                             │
+│  TrilaterationServer ──▶ group by time window               │
+│                        ──▶ TDOA solve                       │
+│                        ──▶ TriangulationResult              │
+│                        ──▶ publish result                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Single-node process boundary
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -67,81 +64,77 @@ Inside one node, the event bus and MQTT run in the same process. MQTT is just an
 │                                    EventBus                   │
 │                              (queue + dispatch thread)        │
 │                                        │                      │
-│                         ┌──────────────┼──────────────┐      │
-│                         ▼              ▼               ▼      │
-│                   MQTTOutputNode  SystemMonitor   [loggers]   │
-│                         │                                     │
-└─────────────────────────┼─────────────────────────────────────┘
-                          │ paho-mqtt (network)
-                          ▼
-                     MQTT Broker
+│                     ┌──────────────────┼──────────────┐      │
+│                     ▼                  ▼               ▼      │
+│               MQTTOutputNode   SystemMonitor   FileLoggerNode  │
+│                     │                                          │
+└─────────────────────┼──────────────────────────────────────────┘
+                      │ paho-mqtt (network)
+                      ▼
+                 MQTT Broker
 ```
 
 **Why two layers?**
 - **Local event bus:** Zero network overhead; works when MQTT is down; decouples detectors from outputs
-- **MQTT:** Fleet-wide broadcast; auto-reconnect; QoS delivery guarantees; standard protocol for dashboards
+- **MQTT:** Fleet-wide broadcast; auto-reconnect; QoS delivery guarantees
 
 ---
 
-## Full Event Flow
+## Package structure
 
-A single acoustic detection flows through the system like this:
-
-1. **Audio callback** (`ALSASourceNode._audio_callback`) — timestamp captured first, samples normalized, buffer emitted
-2. **HPF** (`HighPassFilterNode`) — attenuates frequencies below 5kHz, preserving gunshot energy
-3. **Splitter** (`BufferSplitterNode`) — broadcasts buffer to both detectors in parallel
-4. **Aubio detector** (`AubioOnsetNode`) — processes in `hop_size=512` chunks, detects onset, publishes `DETECTION` event
-5. **Event bus** dispatches to all `DETECTION` subscribers (MQTT output, local logger)
-6. **MQTT output** (`MQTTOutputNode._on_detection_event`) — enriches with GPS + environmental data, publishes JSON to two topics: `gunshot/detections` and `gunshot/<node_id>/detections` (topic names preserved for compatibility)
-7. **Trilateration server** (`scripts/trilateration_server.py`) — collects from all nodes, groups by time window, solves TDOA matrix, emits position with confidence score
-
----
-
-## Local Event Bus
-
-Each node has an in-process event bus (`src/core/event_bus.py`) that decouples components:
-
-- **Fast** — no network overhead
-- **Resilient** — works even when MQTT is down
-- **Extensible** — add new consumers (file loggers, monitors) without modifying producers
-
-**Event types:** `DETECTION`, `SYSTEM`, `TIMING`, `HEALTH`, `CONFIG`
-
-The MQTT output node bridges the local event bus to the network.
+| Package | What it does |
+|---------|-------------|
+| `src/core/` | `EventBus`, `EventType`, `Event` — the in-process pub/sub backbone |
+| `src/audio/` | Audio sources (`ALSASourceNode`, `FileSourceNode`) and the `AudioNode` base |
+| `src/processing/` | Signal filters: HPF, gain, mono conversion, buffer splitter |
+| `src/detection/` | `AubioOnsetNode` (primary detector), `ThresholdDetectorNode` |
+| `src/output/` | `MQTTOutputNode`, `FileLoggerNode`, `BufferSaverNode` |
+| `src/sensors/` | `GPSReader`, `StaticGPSDevice`, `MockGPSDevice`, environmental sensors |
+| `src/timing/` | `NTPClock` — monitors NTP offset, fires TIMING events when drift is high |
+| `src/monitoring/` | `SystemMonitorNode` — CPU, memory, disk, temperature via psutil |
+| `src/remote_config/` | MQTT-based remote configuration with HMAC auth and safety checks |
+| `src/trilateration/` | `TrilaterationEngine` (pure math), `TrilaterationServer` (MQTT integration) — coming from `feat/framework-extraction` |
+| `src/classification/` | `AcousticClassifier` plugin interface — coming from `feat/framework-extraction` (not yet merged) |
+| `src/config/` | `Config` — YAML/JSON config with dot-notation and deep merge |
 
 ---
 
-## MQTT Network Layer
+## Full event flow
 
-MQTT connects all nodes to central services:
+1. **Audio callback** (`ALSASourceNode._audio_callback`) — timestamp captured first, samples normalized, buffer passed directly to the next pipeline node via method call (no event bus; audio flows through pipeline nodes via direct calls, not events)
+2. **High-pass filter** (`HighPassFilterNode`) — attenuates frequencies below ~5kHz, preserving impulsive energy
+3. **Buffer splitter** (`BufferSplitterNode`) — fans out audio buffer to all detector subscribers in parallel
+4. **Aubio detector** (`AubioOnsetNode`) — detects onset in `hop_size=512` chunks, publishes `DETECTION` event
+5. **Event bus** dispatches to all `DETECTION` subscribers
+6. **MQTT output** (`MQTTOutputNode`) — enriches with GPS + environmental data, publishes JSON to:
+   - `gunshot/detections` (fleet-wide)
+   - `gunshot/<node_id>/detections` (node-specific)
+7. **Trilateration server** (`TrilaterationServer`) — groups arrivals by time window, solves TDOA, publishes `TriangulationResult` to `gunshot/trilateration/results`
 
-```
-Node 1 ──┐
-Node 2 ──┼──→  MQTT Broker  ──→  Trilateration Server
-Node 3 ──┘                  └──→  Dashboard
-```
+---
 
-**QoS levels in use:**
-- QoS 0 — Health metrics (ok to lose occasional update)
-- QoS 1 — Detection events (reliable, duplicates tolerated)
-- QoS 2 — Critical commands (exactly once)
-
-### Topic Structure
+## MQTT topic structure
 
 ```
 gunshot/
-├── detections                      # All detections (for trilateration)
+├── detections                       # All detections (input to trilateration)
+├── trilateration/results            # Solved positions from fusion server
 ├── <node_id>/
-│   ├── detections                  # Node-specific detections
-│   ├── health                      # CPU, memory, disk stats
-│   └── status                      # online/offline
+│   ├── detections                   # Node-specific detections
+│   ├── health                       # CPU, memory, disk, temperature
+│   └── status                       # online / offline
+│
+└── config/                          # Remote configuration (remote_config module)
+    ├── <node_id>/set
+    ├── <node_id>/status
+    └── <node_id>/confirm
 ```
 
-### Detection Message Format
+### Detection message format
 
 ```json
 {
-  "node_id": "gunshot_001",
+  "node_id": "strix-001",
   "timestamp": 1707436789.123456,
   "location": {
     "latitude": 37.7749,
@@ -165,102 +158,134 @@ gunshot/
 
 ---
 
-## Failure Resilience
+## TDOA trilateration algorithm
 
-| Failure | Impact | Recovery |
-|---------|--------|----------|
-| Network partition | MQTT publish fails | Auto-reconnect; local detection continues |
-| Broker crash | No fleet coordination | All nodes resume when broker restarts |
-| Single node crash | Reduced trilateration accuracy | Remaining nodes continue; fleet monitor detects absence |
-
----
-
-## Deployment Patterns
-
-| Pattern | Nodes | Use When |
-|---------|-------|----------|
-| Single broker | < 20 | Reliable local network |
-| Clustered broker | 20–100 | Mission-critical, HA required |
-| Hierarchical (edge + cloud) | > 50 | Geographically distributed |
-
----
-
-## TDOA Trilateration Algorithm
-
-> **TL;DR:** Nodes timestamp detections with GPS-synchronized clocks. Time differences between nodes define hyperbolas. Intersections give source position.
-
-### Key Concepts
+> **TL;DR:** Nodes timestamp detections with GPS-synchronized clocks. Time differences between nodes constrain the source to a hyperboloid for each pair. With 3+ nodes, the intersection gives source position.
 
 **Why time differences, not absolute distances?**
 We don't know when the sound was created — only when each node heard it. The *differences* between arrival times define relative distances.
 
-**Math:**
 ```
 Speed of sound: v = 343 m/s (varies with temperature)
-Time difference:  Δtᵢ = tᵢ - t_ref
-Distance diff:    Δdᵢ = Δtᵢ × v
+Time difference: Δtᵢ = tᵢ - t_ref
+Distance diff:   Δdᵢ = Δtᵢ × v
 
-Constraint:  |S - Pᵢ| - |S - P_ref| = Δdᵢ
+Constraint: |S - Pᵢ| - |S - P_ref| = Δdᵢ
 ```
 
-Each node pair defines a **hyperbola** (2D) or **hyperboloid** (3D). With 3+ nodes, intersections converge on the source.
+**Implementation steps:**
 
-### Implementation
+1. **Coordinate conversion** — GPS lat/lon → local XY meters (equirectangular, origin at first node)
+2. **Augmented TDOA system** — builds matrix equation `A·[x,d0]ᵀ = b` treating unknown reference distance `d0` as extra variable; solve with `np.linalg.lstsq`
+3. **Geometry evaluation** — convex hull area of sensor array; collinear/clustered nodes score < 0.1 and are rejected
+4. **Event classification** by time window:
 
-**1. Coordinate conversion** — GPS lat/lon → local XY meters (uses first node as origin)
+   | Window | Event Type |
+   |--------|------------|
+   | < 100ms | Gunshot |
+   | < 500ms | Explosion |
+   | < 2s | Thunder (near) |
+   | < 10s | Thunder (distant) |
+   | > 10s | Thunder (very distant) |
 
-**2. Least-squares solution** — build matrix equation `A×x = b` for all node pairs, solve with `(AᵀA)⁻¹Aᵀb`
+5. **Confidence score** — weighted: node count (20%), detection confidence (30%), geometry (20%), residual error (20%), timing (10%)
 
-**3. Geometry evaluation** — convex hull area of sensor array; good geometry (spread out) increases accuracy; linear arrangements are poor
-
-**4. Event classification by time window:**
-
-| Window | Event Type |
-|--------|------------|
-| < 100ms | Gunshot (local, ~34m max distance) |
-| < 500ms | Explosion (nearby) |
-| < 2s | Thunder (near) |
-| < 10s | Thunder (distant) |
-| > 10s | Thunder (very distant) |
-
-**5. Confidence score** — weighted average of: sensor count (20%), detection confidence (30%), geometry score (20%), residual error (20%), time consistency (10%)
-
-### Accuracy
+**Accuracy factors:**
 
 | Factor | Impact | Mitigation |
 |--------|--------|------------|
 | Clock sync | 1ms error = 0.34m position error | GPS PPS → < 1μs |
 | Temperature | 20°C error = 36m/km | Environmental sensors |
-| Audio buffer timing | 1–10ms (dominant error) | Timestamp at callback |
-| GPS position | ±2–5m | RTK GPS for < 1cm |
-| Multipath | Delayed arrivals | Use earliest detection; filter by residual error |
+| Audio buffer timing | 1–10ms (dominant) | Timestamp at callback entry |
+| GPS position | ±2–5m CEP | RTK GPS for < 1cm |
 
-**Practical accuracy with GPS PPS:** 10–50m
+**Practical accuracy with GPS PPS:** 10–50m for gunshots (validated to 17ns clock offset on Pi 3B+).
 
-See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md) for setup, verification commands, NTP fallback, and common issues.
+---
 
-### Trilateration Server Config
+## Timing architecture
 
-```bash
-# Gunshot detection (close range)
-python scripts/trilateration_server.py --time-window 2.0 --min-nodes 3
+GPS PPS is the foundation of trilateration accuracy. Without synchronized clocks, TDOA is meaningless.
 
-# Thunder detection (long range)
-python scripts/trilateration_server.py --time-window 30.0 --min-nodes 4
-
-# Mixed deployment
-python scripts/trilateration_server.py --time-window 30.0 --min-nodes 3
+```
+GPS Module (NMEA + PPS pulse)
+    │
+    ▼
+gpsd (parses NMEA, exposes PPS)
+    │
+    ▼
+chrony (uses PPS as refclock, locks system clock)
+    │
+    ▼
+System clock: < 1μs offset from UTC   ← strix reads this for timestamps
+    │
+    ▼
+NTPClock (monitors offset, fires TIMING events if drift > threshold)
 ```
 
-### Speed of Sound Correction
+**What "stratum 1" means:** A clock disciplined directly by a hardware reference (GPS PPS) is stratum 1. Nodes with GPS PPS are stratum 1. Nodes using NTP-only are stratum 2–4. Only stratum 1 nodes provide the microsecond timing required for meter-level trilateration.
+
+See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md) for setup, verification commands, and accuracy analysis.
+
+---
+
+## Extension points
+
+### Custom classifier
+
+> `AcousticClassifier` and `ClassificationResult` are being added in the `feat/framework-extraction` branch. After merge they will live in `src/classification/base.py`.
 
 ```python
-# Update based on environmental sensor data
-v = 331.3 + (0.606 * temp_celsius)            # simple
-v = 331.3 * sqrt(1 + temp/273.15) * sqrt(1 + 0.0124 * humidity/100)  # accurate
+# Available after feat/framework-extraction merges:
+# from src.classification.base import AcousticClassifier, ClassificationResult
+import numpy as np
 
-engine.update_speed_of_sound(temperature=25.0)
+class GunVsFireworksClassifier:  # will subclass AcousticClassifier after merge
+    def classify(self, audio_buffer: np.ndarray, sample_rate: int,
+                 detection_event=None):
+        peak = np.max(np.abs(audio_buffer))
+        event_type = "gunshot" if peak > 0.8 else "fireworks"
+        return {"event_type": event_type, "confidence": 0.75}
 ```
+
+### Custom output node
+
+Subscribe to `DETECTION` events on the event bus (do not subclass `AudioNode` unless you need raw audio buffer access — see `CONTRIBUTING.md` for both patterns):
+
+```python
+from src.core.event_bus import EventBus, EventType
+
+class WebhookOutputNode:
+    def __init__(self, url: str, event_bus: EventBus = None):
+        self.url = url
+        self.logger = logging.getLogger(self.__class__.__name__)
+        if event_bus:
+            event_bus.subscribe(EventType.DETECTION, self._on_detection)
+
+    def _on_detection(self, event):
+        # POST to webhook
+        ...
+```
+
+### Custom sensor
+
+Subclass `BaseSensor` from `src/sensors/base.py`. See `GPSReader` or `BME280Sensor` for the full pattern.
+
+### Custom simulation scenario
+
+Add an entry to `tests/simulation/scenarios.py` — see the `SCENARIOS` dict. Each scenario needs `nodes`, `events`, `tolerance_meters`, `min_geometry_score`, and `expected_num_results`.
+
+---
+
+## Failure resilience
+
+| Failure | Impact | Recovery |
+|---------|--------|----------|
+| Network partition | MQTT publish fails | Auto-reconnect; local detection continues |
+| Broker crash | No fleet coordination | All nodes resume when broker restarts |
+| Single node crash | Reduced trilateration accuracy | Remaining 3+ nodes continue |
+| GPS loss | Timestamp accuracy degrades | Falls back to NTP; trilateration less accurate |
+| Bad geometry | Engine rejects solve | Returns None; logged; waits for better configuration |
 
 ---
 
@@ -269,7 +294,8 @@ engine.update_speed_of_sound(temperature=25.0)
 | Layer | Minimum | Production |
 |-------|---------|------------|
 | MQTT auth | Username/password | TLS + client certificates |
-| Per-node credentials | Unique credentials per node | PKI with rotation |
-| Network | Firewall MQTT port (1883/8883) | VPN for inter-site |
+| Per-node credentials | Unique per node | PKI with rotation |
+| Remote config | HMAC-SHA256 message authentication | + rate limiting |
+| Network | Firewall MQTT port | VPN for inter-site |
 
-See `docs/DEVELOPMENT.md` → Security Audit for open items.
+See `docs/DEVELOPMENT.md` for open security items.

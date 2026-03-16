@@ -1,12 +1,28 @@
 # Setup Guide
 
-> **TL;DR:** Install system packages → run `python scripts/setup_dev.py` → configure `config.yaml` → run `python main.py`. For fleet deployment, repeat per node with a unique `node_id` and a shared MQTT broker. Nodes can be any Linux-capable hardware (Raspberry Pi, x86, ARM SBC, Android — anything with audio input and GPS).
+> **TL;DR:** Choose your path: Raspberry Pi with full GPS hardware, any Linux machine, or simulation-only (no hardware at all). All three paths end with `pytest tests/ -q` passing.
 
 ---
 
-## System Dependencies
+## Path 1: Raspberry Pi (full hardware)
 
-### Raspberry Pi / Debian / Ubuntu
+For production trilateration accuracy: Pi 3B+ or later, GPS module with PPS output, I2S or USB microphone.
+
+### Validated hardware
+
+- **Board:** Raspberry Pi 3B+, 4B, or 5
+- **GPS:** Adafruit Ultimate GPS HAT #2324 (validated — 17ns offset achieved)
+- **Audio:** Any USB audio interface, or I2S microphone (INMP441, ICS43434)
+- **Environmental:** BME280 (recommended) or DHT22
+
+### 1. Flash Raspberry Pi OS
+
+Use Raspberry Pi Imager (64-bit Raspberry Pi OS Lite). In advanced options:
+- Enable SSH
+- Set hostname: `strix-001`
+- Set username and password
+
+### 2. System packages
 
 ```bash
 sudo apt-get update && sudo apt-get install -y \
@@ -15,76 +31,46 @@ sudo apt-get update && sudo apt-get install -y \
     aubio-tools libaubio-dev \
     gpsd gpsd-clients python3-gps \
     libgpiod2 \
+    chrony pps-tools \
     git
 ```
 
-### macOS
+### 3. Configure UART and PPS
 
-```bash
-brew install portaudio aubio libsndfile
-```
+Edit `/boot/firmware/config.txt` (Pi 4/5) or `/boot/config.txt` (Pi 3):
 
-GPS and GPIO sensors require Linux and appropriate hardware; they are not supported on macOS.
-
-### Windows
-
-- **PyAudio:** `pip install pyaudio` (pre-compiled wheels available for recent Python versions)
-- **Aubio:** Limited Windows support; use conda (`conda install -c conda-forge aubio`) or file-based detection mode
-- Hardware sensors (GPS, BME280, DHT22) don't work on Windows; use mock implementations for development
-
-**Validation:**
-```bash
-python scripts/check_dependencies.py
-```
-
----
-
-## GPS Setup (Raspberry Pi)
-
-### Hardware
-
-**Recommended modules:**
-- U-blox NEO-M8N — $10–20, 2.5m CEP, 1–10 Hz, UART + PPS
-- U-blox ZED-F9P — $200+, < 1cm with RTK, dual-band
-
-**Wiring (UART):**
-```
-GPS Module          Raspberry Pi
-VCC (3.3V)    →     Pin 1 (3.3V)
-GND           →     Pin 6 (GND)
-TX            →     Pin 10 (GPIO 15, RXD)
-RX            →     Pin 8 (GPIO 14, TXD)
-PPS           →     Pin 12 (GPIO 18)  [for microsecond timing]
-```
-
-### Software Setup
-
-**1. Enable UART:**
-```bash
-# /boot/firmware/config.txt
+```ini
 enable_uart=1
-dtoverlay=disable-bt       # optional, frees UART from Bluetooth on Pi 3/4
-dtoverlay=pps-gpio,gpiopin=18  # if using PPS
+dtoverlay=disable-bt          # frees UART from Bluetooth on Pi 3/4
+dtoverlay=pps-gpio,gpiopin=4  # PPS signal on GPIO 4 (Adafruit GPS HAT #2324)
+                               # GPIO 18 is reserved for I2S audio on Pi boards — do not use for PPS
 ```
+
 Reboot after editing.
 
-**2. Configure gpsd:**
+### 4. Configure gpsd
+
 ```bash
 # /etc/default/gpsd
 START_DAEMON="true"
 USBAUTO="true"
-DEVICES="/dev/ttyAMA0"    # or /dev/ttyUSB0 for USB GPS
+DEVICES="/dev/ttyS0"        # UART GPS on Pi 3B+/4/5 (ttyAMA0 is assigned to Bluetooth on Pi 3B+)
+                              # Use /dev/ttyUSB0 for USB GPS adapters
 GPSD_OPTIONS="-n -G"
 ```
 
 ```bash
-sudo systemctl enable gpsd
-sudo systemctl start gpsd
+sudo systemctl enable gpsd && sudo systemctl start gpsd
 ```
 
-**3. Configure chrony for PPS timing (optional but recommended):**
+Verify:
 ```bash
-sudo apt install chrony pps-tools
+cgps -s          # wait for GPS fix (up to 15 min cold start, needs sky view)
+```
+
+### 5. Configure chrony for PPS timing
+
+```bash
 sudo systemctl disable systemd-timesyncd
 sudo systemctl stop systemd-timesyncd
 ```
@@ -97,264 +83,182 @@ refclock SHM 0 offset 0.0 delay 0.2 refid NMEA
 
 ```bash
 sudo systemctl restart chrony
-chronyc sources -v    # verify PPS0 shows * (primary source)
+chronyc sources -v    # PPS0 should show * as primary source
 ```
 
-With PPS, clock accuracy is < 1μs. The dominant positioning error is audio buffer timing (~1–10ms = 0.34–3.4m).
+With PPS enabled, clock offset is typically < 1μs. See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md) for accuracy analysis and troubleshooting.
 
-See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md) for deeper coverage: accuracy analysis, verification commands, NTP fallback for non-GPS nodes, and common issues.
+### 6. Install strix
 
-### Testing GPS
-
-```bash
-cgps -s                           # terminal GPS monitor
-python tools/gps_test.py --check  # project test tool
-python tools/gps_test.py --monitor 30
-```
-
-**Deployment checklist:**
-- [ ] UART enabled in `/boot/firmware/config.txt`
-- [ ] GPS device connected and wired correctly
-- [ ] gpsd installed and running (`systemctl status gpsd`)
-- [ ] Device configured in `/etc/default/gpsd`
-- [ ] User in `dialout` group (`sudo usermod -a -G dialout $USER`)
-- [ ] GPS has clear view of sky (5–15 min cold start for first fix)
-- [ ] PPS enabled and chrony synced (if using precision timing)
-- [ ] Tested with `cgps -s`
-
-### Surveying Node Positions
-
-For best trilateration accuracy, survey exact node positions:
-
-| Method | Accuracy | Effort |
-|--------|----------|--------|
-| RTK GPS | < 1cm | Moderate |
-| Standard GPS (average over 1hr) | ~2m | Low |
-| Google Earth pin drop | ~5m | Very low |
-| Professional survey | < 1cm | High / expensive |
-
-### Configuration
-
-```yaml
-sensors:
-  gps:
-    enabled: true
-    host: "localhost"
-    port: 2947
-    update_interval: 1.0
-
-location:
-  latitude: 37.7749     # fallback if GPS unavailable
-  longitude: -122.4194
-  altitude: 10.0
-```
-
----
-
-## Environmental Sensors (Linux / Raspberry Pi)
-
-Environmental sensors provide temperature-compensated speed of sound for trilateration accuracy.
-
-### Sensor Options
-
-| Sensor | Interface | Temp Accuracy | Humidity | Pressure | Cost |
-|--------|-----------|--------------|----------|----------|------|
-| **BME280** (recommended) | I2C | ±1°C | ±3% | ✅ | $10–20 |
-| DHT22 | GPIO | ±0.5°C | ±2–5% | ❌ | $2–5 |
-| DHT11 | GPIO | ±2°C | ±5% | ❌ | $1–2 |
-
-### BME280 Wiring (I2C)
-
-```
-BME280        Raspberry Pi
-VCC     →     Pin 1 (3.3V)
-GND     →     Pin 6 (GND)
-SCL     →     Pin 5 (GPIO 3)
-SDA     →     Pin 3 (GPIO 2)
-```
-
-I2C address: 0x76 (default) or 0x77.
-
-**Enable I2C:**
-```bash
-sudo raspi-config
-# Interface Options → I2C → Enable
-
-# Verify
-i2cdetect -y 1    # should show 76 at address 0x76
-```
-
-**Install libraries:**
-```bash
-pip install adafruit-circuitpython-bme280 adafruit-blinka
-```
-
-### DHT22 Wiring (GPIO)
-
-```
-DHT22         Raspberry Pi
-VCC     →     Pin 1 (3.3V)
-GND     →     Pin 6 (GND)
-DATA    →     Pin 7 (GPIO 4)  + 4.7kΩ pull-up to VCC
-```
-
-**Install libraries:**
-```bash
-pip install adafruit-circuitpython-dht
-sudo apt-get install libgpiod2
-```
-
-DHT sensors have 10–20% checksum error rate — this is normal; the driver handles it.
-
-### Testing Sensors
-
-```bash
-python tools/env_test.py                    # auto-detect
-python tools/env_test.py --test-bme280 --duration 30
-python tools/env_test.py --test-dht22 --gpio 4
-```
-
-### Configuration
-
-```yaml
-sensors:
-  environmental:
-    type: "bme280"       # "bme280", "dht22", "dht11", "none"
-    i2c_address: "0x76"  # BME280 only
-    gpio_pin: 4          # DHT only
-    update_interval: 5.0
-```
-
-### Placement Tips
-
-- Mount sensor **away from the Pi** (10+ cm) to avoid self-heating errors
-- Shade from direct sunlight
-- Use a ventilated enclosure
-
----
-
-## Fleet Deployment
-
-### 1. Prepare Nodes
-
-For Raspberry Pi nodes, flash Raspberry Pi OS (64-bit) using Raspberry Pi Imager:
-- Enable SSH in advanced options
-- Set hostnames: `strix-001`, `strix-002`, etc.
-- Use the same username/password across all nodes
-
-For x86 or other Linux nodes, install Debian/Ubuntu and enable SSH.
-
-### 2. Initial Node Configuration
-
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo raspi-config    # Set timezone, enable I2C, serial port
-sudo reboot
-```
-
-### 3. Deploy Code
-
-From your development machine:
-```bash
-NODES=("pi@192.168.1.101" "pi@192.168.1.102" "pi@192.168.1.103")
-
-for node in "${NODES[@]}"; do
-  echo "Deploying to $node..."
-  make deploy PI_HOST=$node
-done
-```
-
-Or manually on each Pi:
 ```bash
 git clone https://github.com/braveness23/gds.git
 cd gds
-python scripts/setup_dev.py
+python3 scripts/setup_dev.py
 ```
 
-### 4. Configure Each Node
+### 7. Configure and run
 
-```yaml
-# config.yaml — must be unique per node
-system:
-  node_id: "strix-001"        # UNIQUE per node
-
-output:
-  mqtt:
-    broker: "192.168.1.100"   # shared MQTT broker IP
-    port: 1883
-
-location:
-  latitude: 37.7749           # set if no GPS
-  longitude: -122.4194
+```bash
+cp examples/config.example.yaml config.yaml
+# Edit: set node_id (unique!), MQTT broker, GPS settings
+python main.py --config config.yaml
 ```
 
-### 5. Set Up MQTT Broker (Central Server)
+### Verification
+
+```bash
+python3 -m pytest tests/ -q
+cgps -s                          # GPS fix and timing
+python tools/gps_test.py --check # strix GPS validation
+chronyc sources -v               # confirm PPS is primary source
+```
+
+**GPS wiring (UART):**
+```
+GPS Module    Raspberry Pi
+VCC (3.3V) →  Pin 1 (3.3V)
+GND        →  Pin 6 (GND)
+TX         →  Pin 10 (GPIO 15, RXD)
+RX         →  Pin 8  (GPIO 14, TXD)
+PPS        →  Pin 7  (GPIO 4)
+```
+
+---
+
+## Path 2: Generic Linux (USB audio + GPS)
+
+Any Linux machine with a USB audio interface and USB/serial GPS. Best for development and small deployments where millisecond-level timing is acceptable.
+
+### System packages (Debian/Ubuntu)
+
+```bash
+sudo apt-get update && sudo apt-get install -y \
+    python3-dev python3-pip python3-venv build-essential \
+    portaudio19-dev libportaudio2 libasound2-dev libsndfile1-dev \
+    aubio-tools libaubio-dev \
+    gpsd gpsd-clients python3-gps \
+    git
+```
+
+### GPS setup
+
+For USB GPS (e.g. u-blox USB dongle), gpsd usually auto-detects:
+
+```bash
+sudo apt install gpsd gpsd-clients
+sudo gpsd /dev/ttyUSB0 -n -G    # or let systemd manage it
+cgps -s                          # verify fix
+```
+
+**Without PPS:** Use NTP-only mode. `NTPClock` monitors offset and fires TIMING events if drift exceeds 10ms. Trilateration accuracy degrades to ~3–30m depending on NTP quality (vs < 1m with GPS PPS).
+
+To run without PPS:
+```bash
+python main.py --config config.yaml    # GPS still provides position; timing via NTP
+```
+
+### Install strix
+
+```bash
+git clone https://github.com/braveness23/gds.git
+cd gds
+python3 scripts/setup_dev.py
+```
+
+### Find your audio device
+
+```bash
+arecord -l     # list ALSA capture devices
+```
+
+Set `audio.device` in `config.yaml` to match (e.g. `hw:1,0`).
+
+### Verification
+
+```bash
+python3 -m pytest tests/ -q
+python tools/gps_test.py --check
+```
+
+---
+
+## Path 3: Simulation / Development (no hardware)
+
+No GPS or microphone needed. Best for first-time contributors, algorithm development, and CI.
+
+### Requirements
+
+- Python 3.7+
+- Any OS (Linux, macOS, Windows)
+
+### Install
+
+```bash
+git clone https://github.com/braveness23/gds.git
+cd gds
+python3 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e .[dev]
+pre-commit install
+```
+
+### Run the simulation
+
+```bash
+python tools/run_simulation.py
+```
+
+See [QUICKSTART.md](QUICKSTART.md) for simulation details and available scenarios.
+
+### Run tests
+
+```bash
+pytest tests/ -q
+```
+
+All tests should pass. The simulation framework (`tests/simulation/`) and integration tests run entirely in-process — no broker, GPS, or audio needed.
+
+---
+
+## Fleet deployment
+
+See the existing deployment section in the fleet notes below. Each node needs:
+- A unique `node_id` in `config.yaml`
+- The shared MQTT broker address
+- GPS configured (or static coordinates as fallback)
+
+### MQTT broker (central server)
 
 ```bash
 sudo apt install mosquitto mosquitto-clients
 
 # /etc/mosquitto/mosquitto.conf
 listener 1883
-allow_anonymous true
+allow_anonymous true    # use auth in production
 
-# Or with authentication:
-# password_file /etc/mosquitto/passwd
-sudo mosquitto_passwd -c /etc/mosquitto/passwd admin
-sudo systemctl restart mosquitto
+sudo systemctl enable --now mosquitto
 ```
 
-### 6. Start Services
+### Run as systemd service (each node)
 
 ```bash
-# On each node
 sudo cp systemd/gunshot-detector.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable gunshot-detector
-sudo systemctl start gunshot-detector
-
-# Verify
-sudo systemctl status gunshot-detector
+sudo systemctl enable --now gunshot-detector
 sudo journalctl -u gunshot-detector -f
 ```
 
-### 7. Verify Fleet Operation
+### Verify fleet
 
 ```bash
-# From any machine with broker access
 mosquitto_sub -h <broker> -t 'gunshot/detections' -v
 mosquitto_sub -h <broker> -t 'gunshot/+/health' -v
-mosquitto_sub -h <broker> -t 'gunshot/gunshot-001/#' -v
 ```
 
-### Network Options
+### Security hardening checklist
 
-| Option | Power Source | Reliability | Use Case |
-|--------|-------------|-------------|----------|
-| WiFi | PoE or battery | Good | Most deployments |
-| Ethernet + PoE HAT | PoE switch | Best | Permanent installations |
-| Meshtastic LoRa | Battery | Long range, low bandwidth | Off-grid / rural |
-
-### Maintenance
-
-**Update all nodes:**
-```bash
-for node in "${NODES[@]}"; do
-  ssh $node "cd ~/gds && git pull && sudo systemctl restart gunshot-detector"
-done
-```
-
-**Check node health:**
-```bash
-for node in "${NODES[@]}"; do
-  echo "=== $node ===" && ssh $node "sudo systemctl status gunshot-detector"
-done
-```
-
-> The service name `gunshot-detector` and MQTT topics (`gunshot/...`) are preserved for backward compatibility.
-
-**Security hardening checklist:**
-- [ ] Enable MQTT authentication (username/password minimum)
-- [ ] Enable TLS for MQTT (port 8883)
+- [ ] MQTT authentication (username/password minimum)
+- [ ] TLS enabled (port 8883)
 - [ ] Unique credentials per node
-- [ ] Firewall: `sudo ufw allow 22/tcp && sudo ufw allow 8883/tcp && sudo ufw enable`
-- [ ] Use VPN for inter-site communication
+- [ ] Firewall: allow SSH (22) and MQTT TLS (8883) only
+- [ ] VPN for inter-site communication

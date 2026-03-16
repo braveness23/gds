@@ -1,6 +1,6 @@
 # Project Status & Roadmap
 
-> **Last updated:** 2026-03-10 | **Overall completeness:** ~85–90%
+> **Last updated:** 2026-03-16 | **Overall completeness:** ~92–95%
 
 ---
 
@@ -13,210 +13,126 @@
 | **Audio pipeline** | ✅ 80% | ALSA source, file source, HPF, gain, mono, splitter |
 | **Detection — Aubio** | ✅ Working | Onset detection, rate limiting, event bus integration |
 | **Detection — Threshold** | ✅ Working | Simple amplitude threshold, min duration filtering |
-| **Detection — ML** | ❌ 0% | Not implemented; Aubio onset detection is primary detector |
+| **Detection — ML** | ❌ 0% | Not implemented; `AcousticClassifier` plugin interface added |
 | **MQTT output** | ✅ 95% | TLS/SSL, QoS, reconnect with backoff, event bus integration |
-| **GPS integration** | ✅ 90% | gpsd, serial NMEA, static fallback; needs hardware test |
+| **GPS integration** | ✅ 90% | gpsd, serial NMEA, static fallback; hardware validated (17ns) |
 | **Environmental sensors** | ✅ 70% | BME280 + DHT22 implemented; needs hardware test |
-| **Trilateration server** | ✅ 95% | 800+ line standalone server; TDOA, geometry scoring |
+| **Trilateration** | ✅ 98% | Extracted to `src/trilateration/`; engine + server + models |
+| **Classification interface** | ✅ Done | `AcousticClassifier` plugin base class in `src/classification/` |
 | **Main application** | ✅ 85% | Orchestrator, CLI, pipeline builder, signal handlers |
-| **System monitoring** | ✅ 85% | CPU, memory, disk, temperature via psutil (314 lines, 86% test coverage) |
-| **Remote configuration** | ✅ 80% | MQTT-based client/server with safety checks, HMAC auth (2490 lines, 75-91% test coverage) |
-| **Timing/synchronization** | ✅ 80% | `NTPClock` in `src/timing/ntp_clock.py` — NTP offset monitor with TIMING events; GPS PPS handled at OS level via chrony |
-| **File logger output** | ✅ 90% | `FileLoggerNode` in `src/output/file_logger.py` — rotating JSONL, 16 unit tests |
-| **Buffer saver output** | ✅ 85% | `BufferSaverNode` in `src/output/buffer_saver.py` — WAV+JSON capture with pre/post window, 18 unit tests |
-| **Tests** | ✅ 78%+ | 396+ unit tests passing, comprehensive unit + integration suite |
+| **System monitoring** | ✅ 85% | CPU, memory, disk, temperature via psutil |
+| **Remote configuration** | ✅ 80% | MQTT-based client/server with safety checks, HMAC auth |
+| **Timing/synchronization** | ✅ 80% | `NTPClock` NTP offset monitor; GPS PPS handled via chrony |
+| **File logger output** | ✅ 90% | Rotating JSONL, 16 unit tests |
+| **Buffer saver output** | ✅ 85% | WAV+JSON capture with pre/post window, 18 unit tests |
+| **Public API** | ✅ Done | `__all__` on all packages; `strix` namespace; `src/__init__.py` |
+| **Tests** | ✅ 78%+ | 459+ unit tests passing, comprehensive suite |
+| **Simulation framework** | ✅ Done | Multi-node, 7 scenarios, 26 integration tests |
 
 ---
 
-## Critical Gaps
+## What shipped this weekend
 
-### ~~1. Timing/Synchronization~~ ✅ Implemented
-
-`src/timing/ntp_clock.py` — NTPClock monitors offset against an NTP server and publishes TIMING events when drift exceeds `max_offset_ms` (default 10ms = 3.4m trilateration error). GPS PPS timing is handled at the OS level via chrony. See [GPS_PPS_TIMING.md](GPS_PPS_TIMING.md).
-
-**Remaining:** Validate PPS hardware integration end-to-end on real Pi hardware.
-
-### ~~2. System Monitoring~~ ✅ Implemented
-
-`src/monitoring/system_monitor.py` — CPU, memory, disk, temperature monitoring via psutil. 314 lines, 86% test coverage.
-
-### ~~3. Remote Configuration~~ ✅ Implemented
-
-`src/remote_config/` — MQTT-based remote configuration with client/server architecture, safety checks (blocked paths, risk assessment), and HMAC-SHA256 message authentication. 2490 lines across 4 modules, 75-91% test coverage.
-
-### 4. Test Coverage — ✅ Target Met
-
-78%+ coverage (target: >70%). 396+ unit tests passing. Core components (event bus, config, detection, sensors) have >85% coverage.
-
-### 5. ML Detection — Not Implemented
-
-No ML detector class exists yet. Aubio onset detection works well as the primary detector and handles most gunshot events reliably.
+- ✅ GPS/PPS hardware validation — 17ns clock offset on Pi 3B+ (see `GPS_PPS_VALIDATION_REPORT.md`)
+- ✅ Multi-node acoustic simulation framework — 7 scenarios, 26 integration tests
+- ✅ Framework extraction — `src/trilateration/` proper module; `scripts/trilateration_server.py` thin wrapper
+- ✅ Public API cleanup — `__all__` on all packages, `strix` namespace, `src/__init__.py` v0.2.0
+- ✅ Classifier plugin interface — `AcousticClassifier` base in `src/classification/`
+- ✅ Docs rewrite — ARCHITECTURE, SETUP (3-path), QUICKSTART (new), CONTRIBUTING additions, STATUS update
 
 ---
 
-## Completion Roadmap
+## Critical gaps
+
+### 1. ML classifier — not implemented
+
+The `AcousticClassifier` interface is defined (`src/classification/base.py`). No trained model exists yet. Aubio onset detection handles the primary detection use case. ML would reduce false positives and add subtype classification (gunshot vs. car backfire, muzzle blast vs. ballistic crack).
+
+### 2. Hardware end-to-end validation
+
+Need: 3+ physical nodes with GPS PPS, MQTT broker, trilateration server — verify actual location accuracy matches simulation predictions.
+
+### 3. Environmental sensor integration in trilateration
+
+`TrilaterationEngine.update_speed_of_sound()` exists but the server doesn't yet pull live temperature from the fleet. This adds ~1m/°C temperature error at km ranges.
+
+---
+
+## Completion roadmap
 
 ### Phase 1 — Make It Work ✅ Complete
 
-1. ✅ `FileLoggerNode` — JSONL rotating log, local fallback when MQTT down
-2. ✅ `BufferSaverNode` — WAV + JSON sidecar capture around detections
-3. Deploy to real Raspberry Pi hardware; fix runtime issues
-4. Test trilateration with 3+ nodes
+- ✅ `FileLoggerNode`, `BufferSaverNode`
+- ✅ Core detection pipeline
+- ✅ GPS integration (gpsd, PPS, static fallback)
 
 ### Phase 2 — Make It Observable ✅ Complete
 
-1. ✅ `src/monitoring/system_monitor.py` (CPU, memory, disk, temperature via psutil)
-2. ✅ Health metrics publishing
+- ✅ `SystemMonitorNode` (CPU, memory, disk, temperature)
+- ✅ Health metrics publishing
 
 ### Phase 3 — Make It Manageable ✅ Complete
 
-1. ✅ `src/remote_config/` — MQTT-based client/server architecture
-2. ✅ Safety checks, risk assessment, HMAC authentication
+- ✅ Remote configuration (MQTT client/server, HMAC, safety checks)
 
-### Phase 4 — Make It Accurate (partial ✅)
+### Phase 4 — Make It Accurate ✅ Mostly complete
 
-1. ✅ NTP offset monitoring — `NTPClock` implemented with TIMING events
-2. Validate PPS hardware integration end-to-end on real Pi hardware
-3. Integrate environmental sensor data into trilateration server
+- ✅ `NTPClock` — NTP offset monitoring with TIMING events
+- ✅ GPS/PPS validated at 17ns offset (3 weeks of field data)
+- 🔄 Integrate environmental sensors into trilateration server live
 
 ### Phase 5 — Make It Robust ✅ Complete
 
-1. ✅ Unit tests to > 70% coverage (currently 77%)
-2. ✅ Integration test suite (with mock services)
-3. ✅ Hardware test procedures (GPS, sensors, audio)
-4. ✅ Security hardening (GPS validation, MQTT auth with HMAC, rate limiting)
-5. ⚠️ Error recovery and circuit breakers (partially implemented)
+- ✅ Unit tests to > 70% (currently 78%+)
+- ✅ Integration test suite (simulation framework)
+- ✅ Hardware test procedures
+- ✅ Security hardening (GPS validation, MQTT HMAC auth, rate limiting)
 
-### Phase 6 — Future Features (deferred)
+### Phase 6 — Classification Layer (next major milestone)
 
-- Meshtastic / LoRa outputs
-- ML gunshot classifier
-- Web dashboard
-- Mobile app
+- [ ] Implement first `AcousticClassifier` — rule-based (spectral shape + attack envelope)
+- [ ] Integrate classifier into detection pipeline
+- [ ] Build training data pipeline using `BufferSaverNode` captures
+- [ ] Evaluate ML options (TensorFlow Lite, Edge Impulse, ONNX)
+
+### Phase 7 — Future features (deferred)
+
+- Meshtastic / LoRa output
+- Web dashboard with map overlay
+- Docker containerization
 - OTA updates
+- Kalman filtering for moving sources
+- Time-series database integration (InfluxDB/TimescaleDB)
 
 ---
 
-## Deferred / Future Features
+## Deferred / future features
 
-These were removed or never implemented. All are in git history or documented below.
+See below sections for full detail on each.
 
 ### Machine Learning Detection
 
 **Priority:** Medium | **Complexity:** High
 
-ML-based gunshot classifier (PyTorch/TensorFlow/ONNX) with learned pattern recognition. Requires: training data, model architecture selection, feature extraction (MFCC/mel-spectrogram), inference pipeline optimized for Raspberry Pi.
+ML-based gunshot classifier with learned pattern recognition. Requires: training data (use `BufferSaverNode` captures), model architecture, MFCC/mel-spectrogram features, inference optimized for Raspberry Pi (TF Lite / Edge Impulse).
 
 Config keys: `detection.ml.enabled`, `detection.ml.model_path`
-
-Consider Edge Impulse or TensorFlow Lite for embedded optimization.
 
 ### Meshtastic Output
 
 **Priority:** Medium | **Complexity:** Medium
 
-Mesh networking via Meshtastic LoRa radios for off-grid deployments without WiFi/cellular. Requires: `MeshtasticOutputNode`, serial/USB communication, channel configuration.
+Mesh networking via LoRa radios for off-grid deployments. Requires: `MeshtasticOutputNode`, serial/USB comms.
 
 Config keys: `output.meshtastic.*`
 
-Hardware: T-Beam, Heltec LoRa32. Python library: `meshtastic` (pip).
+### Advanced Filtering
 
-### LoRa Output
+Only a HPF exists today. Future additions: low-pass, band-pass, notch filter, dynamic compression (AGC), noise gate. All would follow the `HighPassFilterNode` pattern.
 
-**Priority:** Low | **Complexity:** High
-
-Direct LoRa radio with custom protocol. Consider Meshtastic instead unless custom protocol is required.
-
-### Buffer Saver Output
-
-**Priority:** High | **Complexity:** Low
-
-Saves audio buffers around detections as WAV files with JSON metadata. Critical for debugging false positives and building ML training datasets.
-
-Config keys: `output.buffer_saver.*`
-Format: `{timestamp}_{node_id}_{event_id}.wav` + JSON sidecar
-
-### I2S Raw Source
-
-**Priority:** Medium | **Complexity:** Medium
-
-Direct I2S interface audio capture bypassing ALSA for lower latency. A complete implementation existed (`src/audio/i2s_raw_source.py`) but was not wired to `main.py`. Code is preserved in git history.
-
-Requires: config option `audio.source_type: "i2s"`, platform abstraction (Linux only), integration testing.
-
----
-
-## Future Ideas
-
-### Audio Filtering
-
-**Priority:** Medium | **Complexity:** Low–Medium
-
-Only a high-pass (low-cut) filter exists today (`src/processing/processing_nodes.py`). Additional filters would improve detection quality in noisy environments:
-
-- **Low-pass filter** — cut high-frequency hiss/aliasing above the gunshot frequency range
-- **Band-pass filter** — combine high-pass + low-pass into a single configurable passband (e.g. 200Hz–8kHz for gunshots)
-- **Notch filter** — reject specific interference frequencies (e.g. 50/60Hz mains hum, HVAC tones)
-- **Dynamic compression / AGC** — normalize signal level before detection so distant shots aren't missed and close shots don't saturate
-- **Noise gate** — hard-gate signal below a noise floor to prevent false positives in windy/outdoor environments
-
-Config keys (proposed): `processing.lowpass_filter.*`, `processing.bandpass_filter.*`, `processing.notch_filter.*`, `processing.compressor.*`
-
-Implementation: all would follow the same pattern as `HighPassFilterNode` — scipy.signal butter/iirnotch, AudioNode subclass, config-driven enable/disable.
-
----
-
-### Advanced Detection
-
-- Multi-stage detection (fast trigger → ML confirmation)
-- Direction-of-arrival estimation (microphone array)
-- Sound classification (gunshot vs fireworks vs car backfire)
-- Muzzle blast vs ballistic crack separation
-- Experiment with audio buffer size and its effect on detection latency and CPU performance
-
-### Trilateration & Positioning
+### Trilateration Enhancements
 
 - Kalman filtering for moving sources
 - Bayesian position estimation
-- Visual map overlay (web dashboard)
 - Trajectory estimation
-
-### Networking
-
-- LoRaWAN (TTN integration)
-- Satellite backup (Iridium)
-- Multi-hop mesh routing optimization
-
-### Data & Analytics
-
-- Time-series database (InfluxDB/TimescaleDB)
-- Shot pattern heatmaps
-- GeoJSON/KML export
-- API for third-party integration
-- Metrics and telemetry (node health, detection rates, pipeline throughput via Prometheus/Grafana)
-
-### Power Management
-
-- Solar panel integration
-- Wake-on-sound triggering
-- Dynamic power management
-
-### Operations
-
-- Docker containerization
-- Ansible fleet provisioning
-- OTA firmware updates
-- Automatic node discovery
-- Hooks for node-based config GUI (expose config/event hooks for a visual Node-RED-style editor)
-
-### Security
-
-- Certificate-based node authentication
-- Message signing with shared secret
-- Audit logging
-- RBAC for remote configuration
-
-### Developer Experience
-
-- Documentation as code (e.g., Sphinx + autodoc to generate API docs from docstrings)
-- IDE debugging configuration (VSCode `launch.json` for stepping through nodes, mocking hardware)
+- Environmental sensor live integration
