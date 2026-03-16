@@ -137,6 +137,8 @@ setup(
             "pre-commit==3.4.0",
             # MQTT needed for integration tests
             "paho-mqtt~=1.6.1",
+            # NTP client needed for timing tests
+            "ntplib~=0.3.4",
         ],
     },
     entry_points={
