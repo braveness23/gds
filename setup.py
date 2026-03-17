@@ -111,6 +111,10 @@ setup(
             "pytest==7.4.3",
             "pytest-mock==3.12.0",
         ],
+        "ui": [
+            "aiohttp>=3.9.0",
+            "paho-mqtt~=1.6.1",
+        ],
         "meshtastic": [
             "meshtastic>=2.0.0",
         ],
@@ -145,6 +149,7 @@ setup(
         "console_scripts": [
             "strix=strix.cli:main",
             "strix-server=strix.cli:trilateration",
+            "strix-map=src.ui.parliament_map.cli:main",
             "gunshot-detector=strix.cli:main",  # kept for backwards compatibility
         ],
     },

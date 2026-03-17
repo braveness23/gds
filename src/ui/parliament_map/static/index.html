@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>strix — parliament map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .logo .owl { font-size: 22px; }
+    .logo .name { color: #58a6ff; }
+    .logo .subtitle { color: #8b949e; font-size: 13px; font-weight: 400; margin-left: 4px; }
+
+    .header-stats {
+      display: flex;
+      gap: 20px;
+      font-size: 13px;
+    }
+
+    .stat { color: #8b949e; }
+    .stat span { color: #e6edf3; font-weight: 600; }
+
+    .connection-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: #21262d;
+      border: 1px solid #30363d;
+    }
+
+    .connection-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #f85149;
+      transition: background 0.3s;
+    }
+
+    .connection-dot.connected { background: #3fb950; }
+
+    /* Main layout */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Map */
+    #map {
+      flex: 1;
+      z-index: 1;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: #8b949e;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+
+    .tab.active {
+      color: #58a6ff;
+      border-bottom-color: #58a6ff;
+    }
+
+    .tab-content { display: none; flex: 1; overflow-y: auto; }
+    .tab-content.active { display: flex; flex-direction: column; }
+
+    /* Events feed */
+    .event-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+    .event-card {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .event-card:hover { border-color: #58a6ff; }
+
+    .event-card .event-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .event-type {
+      font-weight: 600;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .type-gunshot { background: #ff000033; color: #ff6b6b; border: 1px solid #ff000055; }
+    .type-detection { background: #f7851433; color: #f7a854; border: 1px solid #f7851455; }
+    .type-trilateration { background: #58a6ff33; color: #58a6ff; border: 1px solid #58a6ff55; }
+    .type-explosion { background: #ff6b0033; color: #ff9f6b; border: 1px solid #ff6b0055; }
+    .type-thunder { background: #8b949e33; color: #8b949e; border: 1px solid #8b949e55; }
+    .type-unknown { background: #30363d; color: #8b949e; border: 1px solid #30363d; }
+
+    .event-time { color: #8b949e; font-size: 11px; }
+    .event-detail { color: #8b949e; }
+    .event-detail strong { color: #e6edf3; }
+
+    /* Node list */
+    .node-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+    .node-card {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+
+    .node-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .node-id { font-weight: 600; color: #e6edf3; }
+
+    .node-status {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .status-online { background: #3fb95033; color: #3fb950; border: 1px solid #3fb95055; }
+    .status-offline { background: #f8514933; color: #f85149; border: 1px solid #f8514955; }
+    .status-degraded { background: #d2991633; color: #d29916; border: 1px solid #d2991655; }
+
+    .node-detail { color: #8b949e; line-height: 1.6; }
+    .node-detail strong { color: #e6edf3; }
+
+    /* Timing quality indicator */
+    .timing-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .timing-label { color: #8b949e; font-size: 11px; min-width: 50px; }
+
+    .timing-indicator {
+      height: 4px;
+      border-radius: 2px;
+      flex: 1;
+      background: #30363d;
+      overflow: hidden;
+    }
+
+    .timing-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s;
+    }
+
+    .timing-excellent { background: #3fb950; }
+    .timing-good { background: #d29916; }
+    .timing-poor { background: #f85149; }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      padding: 40px 20px;
+      text-align: center;
+      color: #8b949e;
+    }
+
+    .empty-state .owl { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+    .empty-state p { font-size: 13px; line-height: 1.6; }
+
+    /* Leaflet customization */
+    .leaflet-container { background: #0d1117; }
+
+    .node-marker {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.6);
+      cursor: pointer;
+    }
+
+    .detection-marker {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.8);
+      animation: pulse 1.5s ease-out;
+    }
+
+    .trilateration-marker {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.9);
+      animation: pulse-big 2s ease-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.5); opacity: 1; }
+      100% { transform: scale(2); opacity: 0; }
+    }
+
+    @keyframes pulse-big {
+      0% { transform: scale(0.5); opacity: 1; box-shadow: 0 0 0 0 rgba(88,166,255,0.6); }
+      70% { box-shadow: 0 0 0 15px rgba(88,166,255,0); }
+      100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(88,166,255,0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .sidebar { width: 100%; height: 45vh; border-left: none; border-top: 1px solid #30363d; }
+      .main { flex-direction: column; }
+      .header-stats { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="owl">🦉</span>
+    <span class="name">strix</span>
+    <span class="subtitle">parliament map</span>
+  </div>
+  <div class="header-stats">
+    <div class="stat">Nodes: <span id="stat-nodes">0</span></div>
+    <div class="stat">Detections: <span id="stat-detections">0</span></div>
+    <div class="stat">Located: <span id="stat-trilateration">0</span></div>
+  </div>
+  <div class="connection-badge">
+    <div class="connection-dot" id="conn-dot"></div>
+    <span id="conn-label">connecting…</span>
+  </div>
+</header>
+
+<div class="main">
+  <div id="map"></div>
+
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <button class="tab active" onclick="switchTab('events')">Events</button>
+      <button class="tab" onclick="switchTab('nodes')">Nodes</button>
+    </div>
+
+    <div class="tab-content active" id="tab-events">
+      <div class="event-list" id="event-list">
+        <div class="empty-state">
+          <div class="owl">🦉</div>
+          <p>Waiting for the parliament to speak…<br>Connect nodes and fire events to see them here.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-nodes">
+      <div class="node-list" id="node-list">
+        <div class="empty-state">
+          <div class="owl">🦉</div>
+          <p>No strix nodes seen yet.<br>Start a node to join the parliament.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Map setup ─────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [39.8283, -98.5795],  // center of US — auto-pan on first event
+  zoom: 4,
+  zoomControl: true,
+  attributionControl: true,
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors',
+  className: 'map-tiles',
+}).addTo(map);
+
+// ─── State ─────────────────────────────────────────────────────────────────
+const state = {
+  nodes: {},           // node_id → { status, marker, card }
+  detectionCount: 0,
+  trilaterationCount: 0,
+  autoCenter: true,    // pan to first event
+};
+
+// ─── WebSocket ─────────────────────────────────────────────────────────────
+let ws, reconnectTimer;
+
+function connect() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+  ws.onopen = () => {
+    document.getElementById('conn-dot').classList.add('connected');
+    document.getElementById('conn-label').textContent = 'live';
+    clearTimeout(reconnectTimer);
+  };
+
+  ws.onclose = () => {
+    document.getElementById('conn-dot').classList.remove('connected');
+    document.getElementById('conn-label').textContent = 'reconnecting…';
+    reconnectTimer = setTimeout(connect, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      handleMessage(msg);
+    } catch(err) {
+      console.error('Failed to parse message:', err);
+    }
+  };
+}
+
+function handleMessage(msg) {
+  switch(msg.type) {
+    case 'history':
+      msg.nodes.forEach(n => updateNode(n));
+      msg.detections.forEach(d => addDetectionMarker(d, false));
+      msg.trilateration.forEach(r => addTrilaterationMarker(r, false));
+      updateStats();
+      break;
+    case 'node_update':
+      updateNode(msg.node);
+      updateStats();
+      break;
+    case 'detection':
+      addDetectionMarker(msg.detection, true);
+      addEventCard(msg.detection, 'detection');
+      updateStats();
+      break;
+    case 'trilateration':
+      addTrilaterationMarker(msg.result, true);
+      addEventCard(msg.result, 'trilateration');
+      updateStats();
+      break;
+  }
+}
+
+// ─── Map markers ───────────────────────────────────────────────────────────
+function nodeColor(node) {
+  if (node.status === 'offline') return '#f85149';
+  if (node.timing_stratum === 1) return '#3fb950';
+  if (node.timing_stratum <= 2) return '#d29916';
+  return '#8b949e';
+}
+
+function updateNode(node) {
+  const color = nodeColor(node);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="node-marker" style="background:${color}" title="${node.node_id}"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+
+  if (state.nodes[node.node_id]) {
+    state.nodes[node.node_id].marker.setLatLng([node.latitude, node.longitude]);
+    state.nodes[node.node_id].marker.setIcon(icon);
+  } else {
+    const marker = L.marker([node.latitude, node.longitude], { icon })
+      .addTo(map)
+      .bindPopup(nodePopup(node));
+    state.nodes[node.node_id] = { marker };
+
+    if (state.autoCenter && node.latitude !== 0) {
+      map.setView([node.latitude, node.longitude], 13);
+      state.autoCenter = false;
+    }
+  }
+
+  state.nodes[node.node_id].data = node;
+  updateNodeCard(node);
+}
+
+function nodePopup(node) {
+  const stratum = node.timing_stratum === 1 ? '⭐ Stratum 1' : `Stratum ${node.timing_stratum}`;
+  return `
+    <strong>${node.node_id}</strong><br>
+    Status: ${node.status}<br>
+    Timing: ${stratum} (${node.timing_offset_ms.toFixed(3)}ms offset)<br>
+    Detections: ${node.detection_count}<br>
+    Last seen: ${timeAgo(node.last_seen)}
+  `;
+}
+
+function detectionColor(eventType) {
+  const colors = {
+    gunshot: '#ff6b6b',
+    explosion: '#ff9f6b',
+    thunder: '#8b949e',
+    drone: '#c3a6ff',
+    unknown: '#f7a854',
+  };
+  return colors[eventType] || colors.unknown;
+}
+
+function addDetectionMarker(det, animate) {
+  if (det.latitude === 0 && det.longitude === 0) return;
+  const color = detectionColor(det.event_type);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="detection-marker" style="background:${color}"></div>`,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+  });
+
+  const marker = L.marker([det.latitude, det.longitude], { icon }).addTo(map);
+  marker.bindPopup(`
+    <strong>${det.event_type || 'Detection'}</strong><br>
+    Node: ${det.node_id}<br>
+    Confidence: ${(det.confidence * 100).toFixed(0)}%<br>
+    Time: ${formatTime(det.timestamp)}
+  `);
+
+  state.detectionCount++;
+
+  if (animate && state.autoCenter) {
+    map.setView([det.latitude, det.longitude], 15);
+    state.autoCenter = false;
+  }
+}
+
+function addTrilaterationMarker(result, animate) {
+  if (result.latitude === 0 && result.longitude === 0) return;
+  const color = detectionColor(result.event_type);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="trilateration-marker" style="background:${color}; border-color:${color}">📍</div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+
+  const marker = L.marker([result.latitude, result.longitude], { icon }).addTo(map);
+  marker.bindPopup(`
+    <strong>📍 Located: ${result.event_type}</strong><br>
+    Confidence: ${(result.confidence * 100).toFixed(0)}%<br>
+    Geometry: ${result.geometry_score.toFixed(2)}<br>
+    Nodes: ${result.num_nodes} (${result.contributing_nodes.join(', ')})<br>
+    Residual error: ${result.residual_error.toFixed(1)}m<br>
+    Time: ${formatTime(result.timestamp)}
+  `);
+
+  state.trilaterationCount++;
+
+  if (animate) {
+    map.setView([result.latitude, result.longitude], 15);
+    state.autoCenter = false;
+  }
+}
+
+// ─── Sidebar ───────────────────────────────────────────────────────────────
+function addEventCard(event, type) {
+  const list = document.getElementById('event-list');
+
+  // Remove empty state
+  const empty = list.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const card = document.createElement('div');
+  card.className = 'event-card';
+
+  const eventType = event.event_type || (type === 'trilateration' ? 'located' : 'detection');
+  const typeClass = `type-${eventType.toLowerCase()}`;
+  const label = type === 'trilateration' ? `📍 ${eventType}` : eventType;
+
+  let detail = '';
+  if (type === 'trilateration') {
+    detail = `${event.num_nodes} nodes · ${(event.confidence*100).toFixed(0)}% confidence · ${event.residual_error.toFixed(1)}m error`;
+  } else {
+    detail = `Node: <strong>${event.node_id}</strong> · ${(event.confidence*100).toFixed(0)}% conf`;
+  }
+
+  card.innerHTML = `
+    <div class="event-header">
+      <span class="event-type ${typeClass}">${label}</span>
+      <span class="event-time">${formatTime(event.timestamp)}</span>
+    </div>
+    <div class="event-detail">${detail}</div>
+  `;
+
+  if (event.latitude && event.longitude) {
+    card.onclick = () => map.setView([event.latitude, event.longitude], 16);
+  }
+
+  list.insertBefore(card, list.firstChild);
+
+  // Keep max 100 cards in DOM
+  while (list.children.length > 100) {
+    list.removeChild(list.lastChild);
+  }
+}
+
+function updateNodeCard(node) {
+  const list = document.getElementById('node-list');
+
+  // Remove empty state
+  const empty = list.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const existing = document.getElementById(`node-card-${node.node_id}`);
+  const statusClass = `status-${node.status}`;
+  const stratum = node.timing_stratum === 1 ? '⭐ S1' : `S${node.timing_stratum}`;
+  const offsetAbs = Math.abs(node.timing_offset_ms);
+  const timingQuality = offsetAbs < 0.01 ? 'excellent' : offsetAbs < 1 ? 'good' : 'poor';
+  const timingWidth = Math.max(5, Math.min(100, 100 - (offsetAbs / 10 * 100)));
+
+  const html = `
+    <div class="node-header">
+      <span class="node-id">🦉 ${node.node_id}</span>
+      <span class="node-status ${statusClass}">${node.status}</span>
+    </div>
+    <div class="node-detail">
+      Detections: <strong>${node.detection_count}</strong> · Last seen: <strong>${timeAgo(node.last_seen)}</strong>
+    </div>
+    <div class="timing-bar">
+      <span class="timing-label">${stratum} ${node.timing_offset_ms.toFixed(2)}ms</span>
+      <div class="timing-indicator">
+        <div class="timing-fill timing-${timingQuality}" style="width:${timingWidth}%"></div>
+      </div>
+    </div>
+  `;
+
+  if (existing) {
+    existing.innerHTML = html;
+  } else {
+    const card = document.createElement('div');
+    card.className = 'node-card';
+    card.id = `node-card-${node.node_id}`;
+    card.innerHTML = html;
+    card.onclick = () => {
+      if (node.latitude) map.setView([node.latitude, node.longitude], 14);
+    };
+    list.appendChild(card);
+  }
+}
+
+// ─── Stats ─────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('stat-nodes').textContent = Object.keys(state.nodes).length;
+  document.getElementById('stat-detections').textContent = state.detectionCount;
+  document.getElementById('stat-trilateration').textContent = state.trilaterationCount;
+}
+
+// ─── Utilities ─────────────────────────────────────────────────────────────
+function formatTime(ts) {
+  return new Date(ts * 1000).toLocaleTimeString();
+}
+
+function timeAgo(ts) {
+  const seconds = Math.floor(Date.now() / 1000 - ts);
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds/60)}m ago`;
+  return `${Math.floor(seconds/3600)}h ago`;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+// ─── Init ───────────────────────────────────────────────────────────────────
+connect();
+</script>
+
+</body>
+</html>
