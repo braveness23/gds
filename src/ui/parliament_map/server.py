@@ -9,6 +9,12 @@ The server:
 - Buffers last MAX_EVENTS detection/node events in memory
 - Serves a single-page HTML map application
 - Pushes new events to all connected browsers via WebSocket
+
+Handled topics:
+    gunshot/+/detections   — per-node detection events
+    gunshot/+/health       — per-node health/status
+    gunshot/results        — trilateration results
+    gunshot/detections     — broadcast detection fallback
 """
 
 import asyncio
@@ -16,7 +22,7 @@ import json
 import logging
 import time
 from collections import deque
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
@@ -262,7 +268,7 @@ class ParliamentMapServer:
             return
         data = json.dumps(message)
         dead = set()
-        for ws in self.websocket_clients:
+        for ws in list(self.websocket_clients):  # snapshot — safe under concurrent connect/disconnect
             try:
                 await ws.send_str(data)
             except Exception:
@@ -350,12 +356,15 @@ class ParliamentMapServer:
         try:
             while True:
                 await asyncio.sleep(10)
-                # Mark stale nodes
-                for node in self.nodes.values():
+                # Mark stale nodes — snapshot dict to avoid mutation during async iteration
+                updates = []
+                for node in list(self.nodes.values()):
                     new_status = "offline" if node.is_stale else "online"
                     if new_status != node.status:
                         node.status = new_status
-                        await self._broadcast({"type": "node_update", "node": node.to_dict()})
+                        updates.append(node.to_dict())
+                for node_dict in updates:
+                    await self._broadcast({"type": "node_update", "node": node_dict})
         except asyncio.CancelledError:
             pass
         finally:
