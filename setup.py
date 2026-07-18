@@ -108,7 +108,7 @@ setup(
             "adafruit-blinka>=8.0.0",
         ],
         "simulation": [
-            "pytest==7.4.3",
+            "pytest==9.0.3",
             "pytest-mock==3.12.0",
         ],
         "ui": [
@@ -128,7 +128,7 @@ setup(
         ],
         "dev": [
             # Testing dependencies (pinned for reproducibility)
-            "pytest==7.4.3",
+            "pytest==9.0.3",
             "pytest-cov==4.1.0",
             "pytest-mock==3.12.0",
             "pytest-asyncio==0.21.1",
