@@ -134,7 +134,7 @@ setup(
             "pytest-asyncio==0.21.1",
             "pytest-timeout==2.2.0",
             # Code quality tools (pinned for consistency)
-            "black==23.12.0",
+            "black==26.3.1",
             "ruff==0.1.6",
             "mypy==1.5.1",
             # Pre-commit hooks
